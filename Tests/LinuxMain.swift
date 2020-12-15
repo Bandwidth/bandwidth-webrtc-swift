@@ -1,7 +1,7 @@
 import XCTest
 
-import webrtc_swiftTests
+import BandwidthWebRTCTests
 
 var tests = [XCTestCaseEntry]()
-tests += webrtc_swiftTests.allTests()
+tests += BandwidthWebRTCTests.allTests()
 XCTMain(tests)

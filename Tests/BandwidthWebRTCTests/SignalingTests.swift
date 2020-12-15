@@ -1,15 +1,11 @@
 import XCTest
-@testable import webrtc_swift
+@testable import BandwidthWebRTC
 
-final class webrtc_swiftTests: XCTestCase {
+final class BandwidthWebRTCTests: XCTestCase {
     func testExample() {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct
         // results.
-        XCTAssertEqual(webrtc_swift().text, "Hello, World!")
+        XCTAssertNotNil(Signaling())
     }
-
-    static var allTests = [
-        ("testExample", testExample),
-    ]
 }
