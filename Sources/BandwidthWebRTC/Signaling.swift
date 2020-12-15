@@ -9,9 +9,10 @@ import Foundation
 import JSONRPCWebSockets
 
 enum SignalingMethod: String {
-    case sdpNeeded
     case addICECandidate = "addIceCandidate"
+    case offerSDP = "offerSdp"
     case setMediaPreferences
+    case sdpNeeded
 }
 
 protocol SignalingDelegate {
@@ -61,6 +62,13 @@ class Signaling {
             self.client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
                 completion()
             }
+        }
+    }
+    
+    public func offerSDP(endpointId: String, sdpOffer: String, completion: @escaping (OfferSDPResult?) -> Void) {
+        let parameters = OfferSDPParameters(endpointId: endpointId, sdpOffer: sdpOffer)
+        client.call(method: "offerSdp", parameters: parameters, type: OfferSDPResult.self) { result in
+            completion(result)
         }
     }
 }
