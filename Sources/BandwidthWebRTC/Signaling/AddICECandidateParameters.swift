@@ -8,8 +8,8 @@
 import Foundation
 
 struct AddICECandidateParameters: Codable {
+    let endpointId: String
     let candidate: Candidate
-    let endPointId: String
     
     struct Candidate: Codable {
         let candidate: String
