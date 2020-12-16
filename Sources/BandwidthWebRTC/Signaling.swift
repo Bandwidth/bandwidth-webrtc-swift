@@ -10,6 +10,7 @@ import JSONRPCWebSockets
 
 enum SignalingMethod: String {
     case addICECandidate = "addIceCandidate"
+    case endpointRemoved
     case offerSDP = "offerSdp"
     case requestToPublish
     case sdpNeeded
@@ -20,6 +21,7 @@ enum SignalingMethod: String {
 protocol SignalingDelegate {
     func signaling(_ signaling: Signaling, didReceiveSDPNeeded parameters: SDPNeededParameters)
     func signaling(_ signaling: Signaling, didReceiveAddICECandidate parameters: AddICECandidateParameters)
+    func signaling(_ signaling: Signaling, didReceiveEndpointRemoved parameters: EndpointRemovedParameters)
 }
 
 class Signaling {
@@ -46,7 +48,10 @@ class Signaling {
             throw SignalingError.invalidWebSocketURL
         }
         
-        //TODO: client.subscriber(to: "endpointRemoved", type: )
+        try? client.subscribe(to: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self)
+        client.on(method: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self) { parameters in
+            self.delegate?.signaling(self, didReceiveEndpointRemoved: parameters)
+        }
         
         try? client.subscribe(to: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self)
         client.on(method: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self) { parameters in
