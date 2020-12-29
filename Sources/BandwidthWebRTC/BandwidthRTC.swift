@@ -8,7 +8,7 @@
 import Foundation
 import WebRTC
 
-class BandwidthRTC: NSObject {
+public class BandwidthRTC: NSObject {
     private var signaling: Signaling?
     
     private var remotePeerConnections = Dictionary<String, RTCPeerConnection>()
@@ -29,8 +29,8 @@ class BandwidthRTC: NSObject {
         }
     }
     
-    func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
-        signaling?.requestToPublish(mediaTypes: [], alias: alias) { result in
+    func publish(mediaTypes: [String], alias: String?, completion: @escaping () -> Void) {
+        signaling?.requestToPublish(mediaTypes: mediaTypes, alias: alias) { result in
             print("Request to publish...")
             completion()
         }
@@ -105,39 +105,39 @@ extension BandwidthRTC: SignalingDelegate {
 }
 
 extension BandwidthRTC: RTCPeerConnectionDelegate {
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
         print("RTCPeerConnection didChange stateChanged")
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
         print("RTCPeerConnection didAdd stream")
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
         print("RTCPeerConnection didRemove stream")
     }
     
-    func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
+    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
         print("RTCPeerConnection should negotiate.")
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
         
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
         print("A peer connection has generated an ICE candiate.")
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
         
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
         
     }
 }
