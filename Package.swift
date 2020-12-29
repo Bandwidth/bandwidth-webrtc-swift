@@ -23,7 +23,8 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "BandwidthWebRTC",
-            dependencies: [.product(name: "JSONRPCWebSockets", package: "json-rpc-websockets")]),
+            dependencies: [.product(name: "JSONRPCWebSockets", package: "json-rpc-websockets"),
+                           .product(name: "WebRTC", package: "WebRTC")]),
         .testTarget(
             name: "BandwidthWebRTCTests",
             dependencies: ["BandwidthWebRTC"]),

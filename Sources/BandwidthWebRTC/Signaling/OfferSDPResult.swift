@@ -9,4 +9,5 @@ import Foundation
 
 struct OfferSDPResult: Decodable {
     let sdpAnswer: String
+    let candidates: [Candidate]?
 }
