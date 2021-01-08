@@ -7,6 +7,7 @@
 
 import Foundation
 import JSONRPCWebSockets
+import WebRTC
 
 enum SignalingMethod: String {
     case addICECandidate = "addIceCandidate"
@@ -26,15 +27,10 @@ protocol SignalingDelegate {
 
 class Signaling {
     private let client = Client()
-    private var hasSetMediaPreferences = false
     
-    public var delegate: SignalingDelegate?
+    var delegate: SignalingDelegate?
     
-    public func connect(token: String, completion: @escaping () -> Void) throws {
-        guard !token.isEmpty else {
-            throw SignalingError.emptyToken
-        }
-        
+    func connect(using token: String, completion: @escaping (RequestToPublishResult) -> Void) throws {
         var urlComponents = URLComponents()
         urlComponents.scheme = "wss"
         urlComponents.host = "device.webrtc.bandwidth.com"
@@ -48,61 +44,75 @@ class Signaling {
             throw SignalingError.invalidWebSocketURL
         }
         
-        try? client.subscribe(to: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self)
+        try client.subscribe(to: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self)
         client.on(method: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self) { parameters in
             self.delegate?.signaling(self, didReceiveEndpointRemoved: parameters)
         }
         
-        try? client.subscribe(to: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self)
+        try client.subscribe(to: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self)
         client.on(method: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self) { parameters in
             self.delegate?.signaling(self, didReceiveSDPNeeded: parameters)
         }
         
-        try? client.subscribe(to: SignalingMethod.addICECandidate.rawValue, type: AddICECandidateParameters.self)
+        try client.subscribe(to: SignalingMethod.addICECandidate.rawValue, type: AddICECandidateParameters.self)
         client.on(method: SignalingMethod.addICECandidate.rawValue, type: AddICECandidateParameters.self) { parameters in
             self.delegate?.signaling(self, didReceiveAddICECandidate: parameters)
         }
-        
+
         client.connect(url: url) {
             self.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
-                completion()
+                self.requestToPublish(mediaTypes: ["AUDIO"], alias: nil) { result in
+                    guard let result = result else {
+                        return
+                    }
+                    
+                    completion(result)
+                }
             }
-        }
-    }
-    
-    public func requestToPublish(mediaTypes: [String], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
-        let parameters = RequestToPublishParameters(mediaTypes: mediaTypes, alias: alias)
-        client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
-            completion(result)
-        }
-    }
-    
-    public func offerSDP(endpointId: String, sdpOffer: String, completion: @escaping (OfferSDPResult?) -> Void) {
-        let parameters = OfferSDPParameters(endpointId: endpointId, sdpOffer: sdpOffer)
-        client.call(method: SignalingMethod.offerSDP.rawValue, parameters: parameters, type: OfferSDPResult.self) { result in
-            completion(result)
-        }
-    }
-    
-    public func addICECandidate(endpointId: String, candidate: String, sdpMLineIndex: Int, sdpMid: String, completion: @escaping (Error?) -> Void) throws {
-        let candidate = AddICECandidateParameters.Candidate(candidate: candidate, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
-        let parameters = AddICECandidateParameters(endpointId: endpointId, candidate: candidate)
-        try client.notify(method: SignalingMethod.addICECandidate.rawValue, parameters: parameters) { error in
-            completion(error)
-        }
-    }
-    
-    public func unpublish(endpointId: String, completion: @escaping (Error?) -> Void) throws {
-        let parameters = UnpublishParameters(endpointId: endpointId)
-        try client.notify(method: SignalingMethod.unpublish.rawValue, parameters: parameters) { error in
-            completion(error)
         }
     }
     
     private func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
         let parameters = SetMediaPreferencesParameters(protocol: `protocol`, aggregationType: aggregationType, sendReceive: sendReceive)
-        self.client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
+        do {
+            try client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
+                completion(result)
+            }
+        } catch let error {
+            debugPrint(error.localizedDescription)
+        }
+    }
+    
+    private func requestToPublish(mediaTypes: [String], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
+        let parameters = RequestToPublishParameters(mediaTypes: mediaTypes, alias: alias)
+        do {
+            try client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
+                completion(result)
+            }
+        } catch let error {
+            debugPrint(error.localizedDescription)
+        }
+    }
+    
+    func offer(endpointId: String, sdp: String, completion: @escaping (OfferSDPResult?) -> Void) {
+        let parameters = OfferSDPParameters(endpointId: endpointId, sdpOffer: sdp)
+        
+        try? client.call(method: "offerSdp", parameters: parameters, type: OfferSDPResult.self) { result in
             completion(result)
+        }
+    }
+    
+    func sendIceCandidate(endpointId: String, candidate: RTCIceCandidate) {
+        let parameters = AddICECandidateSendParameters(
+            endpointId: endpointId,
+            candidate: candidate.sdp,
+            sdpMLineIndex: Int(candidate.sdpMLineIndex),
+            sdpMid: candidate.sdpMid ?? "")
+        
+        try? client.notify(method: "addIceCandidate", parameters: parameters) { error in
+            if let error = error {
+                debugPrint(error.localizedDescription)
+            }
         }
     }
 }
