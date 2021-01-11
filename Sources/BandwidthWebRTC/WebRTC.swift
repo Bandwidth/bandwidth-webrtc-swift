@@ -8,10 +8,10 @@
 import Foundation
 import WebRTC
 
-protocol WebRTCDelegate: class {
+public protocol WebRTCDelegate: class {
     func webRTC(_ webRTC: WebRTC, didChange state: ConnectionState)
-    func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
-    func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
+//    func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
+//    func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
     func webRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
     func webRTC(_ webRTC: WebRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
 }
@@ -38,7 +38,7 @@ public class WebRTC: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
-    weak var delegate: WebRTCDelegate?
+    public weak var delegate: WebRTCDelegate?
     
     public override init() {
         super.init()
@@ -256,11 +256,11 @@ extension WebRTC: RTCPeerConnectionDelegate {
 
 extension WebRTC: SignalingDelegate {
     func signaling(_ signaling: Signaling, didConnect isConnected: Bool) {
-        delegate?.webRTC(self, didConnect: signaling)
+//        delegate?.webRTC(self, didConnect: signaling)
     }
     
     func signaling(_ signaling: Signaling, didDisconnect isConnected: Bool) {
-        delegate?.webRTC(self, didDisconnect: signaling)
+//        delegate?.webRTC(self, didDisconnect: signaling)
     }
     
     func signaling(_ signaling: Signaling, didReceiveSDPNeeded parameters: SDPNeededParameters) {

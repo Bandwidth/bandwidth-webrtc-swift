@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum ConnectionState {
+public enum ConnectionState {
     case new
     case checking
     case connected
