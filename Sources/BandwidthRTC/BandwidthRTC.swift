@@ -39,26 +39,38 @@ final class BandwidthRTC: NSObject {
     
     weak var delegate: BandwidthRTCDelegate?
     
-    override init() {
+    public override init() {
         super.init()
         
         configureAudioSession()
     }
     
-    public func connect(using token: String) throws {
+    public func connect(using token: String, completion: @escaping () -> Void) throws {
         signaling = Signaling()
         signaling?.delegate = self
         
-        try signaling?.connect(using: token) { result in
-            let peerConnection = BandwidthRTC.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
-            peerConnection.delegate = self
-            
-            self.createMediaSenders(peerConnection: peerConnection)
-            
-            let localConnection = Connection(endpointId: result.endpointId, peerConnection: peerConnection)
-            self.localConnections.append(localConnection)
-            
-            self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection)
+        try signaling?.connect(using: token) {
+            completion()
+        }
+    }
+    
+    public func publish(completion: @escaping () -> Void) {
+        signaling?.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
+            self.signaling?.requestToPublish(mediaTypes: ["AUDIO"], alias: nil) { result in
+                guard let result = result else {
+                    return
+                }
+                
+                let peerConnection = BandwidthRTC.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
+                peerConnection.delegate = self
+                
+                self.createMediaSenders(peerConnection: peerConnection)
+                
+                let localConnection = Connection(endpointId: result.endpointId, peerConnection: peerConnection)
+                self.localConnections.append(localConnection)
+                
+                self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection)
+            }
         }
     }
     
