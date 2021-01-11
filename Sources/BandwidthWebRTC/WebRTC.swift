@@ -9,6 +9,7 @@ import Foundation
 import WebRTC
 
 protocol WebRTCDelegate: class {
+    func webRTC(_ webRTC: WebRTC, didChange state: ConnectionState)
     func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
     func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
     func webRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
@@ -209,6 +210,25 @@ extension WebRTC: RTCPeerConnectionDelegate {
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         debugPrint("peerConnection didChange newState: RTCIceConnectionState - \(newState)")
+        
+        switch newState {
+        case .new:
+            delegate?.webRTC(self, didChange: .new)
+        case .checking:
+            delegate?.webRTC(self, didChange: .checking)
+        case .connected:
+            delegate?.webRTC(self, didChange: .connected)
+        case .completed:
+            delegate?.webRTC(self, didChange: .completed)
+        case .failed:
+            delegate?.webRTC(self, didChange: .failed)
+        case .disconnected:
+            delegate?.webRTC(self, didChange: .disconnected)
+        case .closed:
+            delegate?.webRTC(self, didChange: .closed)
+        default:
+            print("Unknown RTCIceConnectionState: \(newState)")
+        }
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
