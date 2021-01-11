@@ -1,5 +1,5 @@
 //
-//  BandwidthRTC.swift
+//  WebRTC.swift
 //
 //
 //  Created by Michael Hamer on 12/17/20.
@@ -8,14 +8,14 @@
 import Foundation
 import WebRTC
 
-protocol BandwidthRTCDelegate: class {
-    func bandwidthRTC(_ bandwidthRTC: BandwidthRTC, didConnect signaling: Signaling)
-    func bandwidthRTC(_ bandwidthRTC: BandwidthRTC, didDisconnect signaling: Signaling)
-    func bandwidthRTC(_ bandwidthRTC: BandwidthRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
-    func bandwidthRTC(_ bandwidthRTC: BandwidthRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
+protocol WebRTCDelegate: class {
+    func bandwidthRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
+    func bandwidthRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
+    func bandwidthRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
+    func bandwidthRTC(_ webRTC: WebRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
 }
 
-public class BandwidthRTC: NSObject {
+public class WebRTC: NSObject {
     private var signaling: Signaling?
     
     private static let factory: RTCPeerConnectionFactory = {
@@ -37,7 +37,7 @@ public class BandwidthRTC: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
-    weak var delegate: BandwidthRTCDelegate?
+    weak var delegate: WebRTCDelegate?
     
     public override init() {
         super.init()
@@ -61,7 +61,7 @@ public class BandwidthRTC: NSObject {
                     return
                 }
                 
-                let peerConnection = BandwidthRTC.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
+                let peerConnection = WebRTC.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
                 peerConnection.delegate = self
                 
                 self.createMediaSenders(peerConnection: peerConnection)
@@ -107,8 +107,8 @@ public class BandwidthRTC: NSObject {
     
     private func createAudioTrack() -> RTCAudioTrack {
         let audioConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
-        let audioSource = BandwidthRTC.factory.audioSource(with: audioConstraints)
-        let audioTrack = BandwidthRTC.factory.audioTrack(with: audioSource, trackId: "audio0")
+        let audioSource = WebRTC.factory.audioSource(with: audioConstraints)
+        let audioTrack = WebRTC.factory.audioTrack(with: audioSource, trackId: "audio0")
 
         return audioTrack
     }
@@ -164,7 +164,7 @@ public class BandwidthRTC: NSObject {
     }
     
     private func handleSDPNeededEvent(parameters: SDPNeededParameters) {
-        let peerConnection = BandwidthRTC.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
+        let peerConnection = WebRTC.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
         let remoteConnection = Connection(endpointId: parameters.endpointId, peerConnection: peerConnection)
         
         remoteConnections.append(remoteConnection)
@@ -190,7 +190,7 @@ public class BandwidthRTC: NSObject {
     }
 }
 
-extension BandwidthRTC: RTCPeerConnectionDelegate {
+extension WebRTC: RTCPeerConnectionDelegate {
     public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
         debugPrint("peerConnectionShouldNegotiate")
     }
@@ -234,7 +234,7 @@ extension BandwidthRTC: RTCPeerConnectionDelegate {
     }
 }
 
-extension BandwidthRTC: SignalingDelegate {
+extension WebRTC: SignalingDelegate {
     func signaling(_ signaling: Signaling, didConnect isConnected: Bool) {
         delegate?.bandwidthRTC(self, didConnect: signaling)
     }
