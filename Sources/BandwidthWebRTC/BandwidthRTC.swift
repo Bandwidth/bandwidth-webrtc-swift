@@ -191,31 +191,31 @@ public class BandwidthRTC: NSObject {
 }
 
 extension BandwidthRTC: RTCPeerConnectionDelegate {
-    func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
+    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
         debugPrint("peerConnectionShouldNegotiate")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
         debugPrint("peerConnection didChange stateChanged: \(stateChanged)")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
         debugPrint("peerConnection didAdd stream: RTCMediaStream")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
         debugPrint("peerConnection didRemove stream: RTCMediaStream")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         debugPrint("peerConnection didChange newState: RTCIceConnectionState - \(newState)")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
         debugPrint("peerConnection didChange newState: RTCIceGatheringState - \(newState)")
     }
 
-    func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
         debugPrint("peerConnection didGenerate candidate: RTCIceCandidate")
         
         guard let endpointId = remoteConnections.first(where: { $0.peerConnection == peerConnection })?.endpointId else {
@@ -225,11 +225,11 @@ extension BandwidthRTC: RTCPeerConnectionDelegate {
         signaling?.sendIceCandidate(endpointId: endpointId, candidate: candidate)
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
         debugPrint("peerConnection didRemove candidates: [RTCIceCandidate]")
     }
     
-    func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
         debugPrint("peerConnection didOpen dataChannel: RTCDataChannel")
     }
 }
