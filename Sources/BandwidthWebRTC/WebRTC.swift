@@ -9,10 +9,10 @@ import Foundation
 import WebRTC
 
 protocol WebRTCDelegate: class {
-    func bandwidthRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
-    func bandwidthRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
-    func bandwidthRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
-    func bandwidthRTC(_ webRTC: WebRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
+    func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
+    func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
+    func webRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
+    func webRTC(_ webRTC: WebRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
 }
 
 public class WebRTC: NSObject {
@@ -186,7 +186,7 @@ public class WebRTC: NSObject {
 
         connection.peerConnection.add(candidate)
 
-        delegate?.bandwidthRTC(self, didReceiveRemoteICECandidate: candidate)
+        delegate?.webRTC(self, didReceiveRemoteICECandidate: candidate)
     }
 }
 
@@ -236,11 +236,11 @@ extension WebRTC: RTCPeerConnectionDelegate {
 
 extension WebRTC: SignalingDelegate {
     func signaling(_ signaling: Signaling, didConnect isConnected: Bool) {
-        delegate?.bandwidthRTC(self, didConnect: signaling)
+        delegate?.webRTC(self, didConnect: signaling)
     }
     
     func signaling(_ signaling: Signaling, didDisconnect isConnected: Bool) {
-        delegate?.bandwidthRTC(self, didDisconnect: signaling)
+        delegate?.webRTC(self, didDisconnect: signaling)
     }
     
     func signaling(_ signaling: Signaling, didReceiveSDPNeeded parameters: SDPNeededParameters) {
