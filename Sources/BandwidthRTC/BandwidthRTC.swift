@@ -15,7 +15,7 @@ protocol BandwidthRTCDelegate: class {
     func bandwidthRTC(_ bandwidthRTC: BandwidthRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
 }
 
-final class BandwidthRTC: NSObject {
+public class BandwidthRTC: NSObject {
     private var signaling: Signaling?
     
     private static let factory: RTCPeerConnectionFactory = {
