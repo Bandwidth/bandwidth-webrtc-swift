@@ -8,6 +8,6 @@
 import Foundation
 
 struct RequestToPublishParameters: Codable {
-    let mediaTypes: [String]
+    let mediaTypes: [MediaType]
     let alias: String?
 }

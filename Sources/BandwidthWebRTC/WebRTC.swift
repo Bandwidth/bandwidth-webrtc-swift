@@ -56,9 +56,9 @@ public class WebRTC: NSObject {
         }
     }
     
-    public func publish(completion: @escaping () -> Void) {
+    public func publish(mediaTypes: [MediaType]) {
         signaling?.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
-            self.signaling?.requestToPublish(mediaTypes: ["AUDIO"], alias: nil) { result in
+            self.signaling?.requestToPublish(mediaTypes: mediaTypes, alias: nil) { result in
                 guard let result = result else {
                     return
                 }

@@ -75,7 +75,7 @@ class Signaling {
         }
     }
     
-    func requestToPublish(mediaTypes: [String], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
+    func requestToPublish(mediaTypes: [MediaType], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
         let parameters = RequestToPublishParameters(mediaTypes: mediaTypes, alias: alias)
         do {
             try client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
