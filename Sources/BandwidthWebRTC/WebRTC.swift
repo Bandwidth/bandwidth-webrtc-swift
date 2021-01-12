@@ -39,6 +39,11 @@ public class WebRTC: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
+    private var videoCapturer: RTCVideoCapturer?
+
+    private var localVideoTrack: RTCVideoTrack?
+    private var remoteVideoTrack: RTCVideoTrack?
+    
     public weak var delegate: WebRTCDelegate?
     
     public override init() {
@@ -56,7 +61,17 @@ public class WebRTC: NSObject {
         }
     }
     
-    public func publish(mediaTypes: [MediaType], completion: @escaping () -> Void) {
+    public func publish(audio: Bool, video: Bool, completion: @escaping () -> Void) {
+        var mediaTypes = [MediaType]()
+        
+        if audio {
+            mediaTypes.append(.audio)
+        }
+        
+        if video {
+            mediaTypes.append(.video)
+        }
+        
         signaling?.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
             self.signaling?.requestToPublish(mediaTypes: mediaTypes, alias: nil) { result in
                 guard let result = result else {
@@ -82,6 +97,36 @@ public class WebRTC: NSObject {
     
     // MARK: Media
     
+    func captureLocalVideo(renderer: RTCVideoRenderer) {
+        guard let capturer = videoCapturer as? RTCCameraVideoCapturer else {
+            return
+        }
+        
+        // Grab the front facing camera. TODO: Add support for additional cameras.
+        guard let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == .front }) else {
+            return
+        }
+        
+        // Grab the highest resolution available.
+        guard let format = RTCCameraVideoCapturer.supportedFormats(for: device)
+            .sorted(by: { CMVideoFormatDescriptionGetDimensions($0.formatDescription).width < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width })
+            .last else { return }
+        
+        // Grab the highest fps available.
+        guard let fps = format.videoSupportedFrameRateRanges
+            .compactMap({ $0.maxFrameRate })
+            .sorted()
+            .last else { return }
+        
+        capturer.startCapture(with: device, format: format, fps: Int(fps))
+        
+        localVideoTrack?.add(renderer)
+    }
+    
+    func renderRemoteVideo(renderer: RTCVideoRenderer) {
+        remoteVideoTrack?.add(renderer)
+    }
+    
     func configureAudioSession() {
         #if os(iOS)
         audioSession.lockForConfiguration()
@@ -103,10 +148,14 @@ public class WebRTC: NSObject {
         let streamId = "stream"
         
         // Create an audio track for the peer connection.
-        let audioTrack = self.createAudioTrack()
+        let audioTrack = createAudioTrack()
         peerConnection.add(audioTrack, streamIds: [streamId])
         
-        // TODO: Video
+        // Create a video track for the peer connection.
+        let videoTrack = createVideoTrack()
+        peerConnection.add(videoTrack, streamIds: [streamId])
+        
+        remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
         
         // TODO: Data?
     }
@@ -117,6 +166,20 @@ public class WebRTC: NSObject {
         let audioTrack = WebRTC.factory.audioTrack(with: audioSource, trackId: "audio0")
 
         return audioTrack
+    }
+    
+    private func createVideoTrack() -> RTCVideoTrack {
+        let videoSource = WebRTC.factory.videoSource()
+        
+        #if targetEnvironment(simulator)
+        videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
+        #else
+        videoCapturer = RTCCameraVideoCapturer(delegate: videoSource)
+        #endif
+        
+        let videoTrack = WebRTC.factory.videoTrack(with: videoSource, trackId: "video0")
+        
+        return videoTrack
     }
     
     private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [String], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
