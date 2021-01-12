@@ -175,7 +175,9 @@ public class WebRTC: NSObject {
         
         remoteConnections.append(remoteConnection)
         
-        negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: peerConnection)
+        negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: peerConnection) {
+            
+        }
     }
     
     private func handleIceCandidateEvent(parameters: AddICECandidateParameters) {
