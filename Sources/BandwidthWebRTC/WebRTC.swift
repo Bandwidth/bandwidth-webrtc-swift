@@ -9,7 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol WebRTCDelegate: class {
-    func webRTC(_ webRTC: WebRTC, didChange state: ConnectionState)
+    func webRTC(_ webRTC: WebRTC, didChangePeerConnectionState state: PeerConnectionState?, with error: WebRTCError?)
+    
 //    func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
 //    func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
     func webRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
@@ -197,7 +198,31 @@ extension WebRTC: RTCPeerConnectionDelegate {
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
-        print("peerConnection didChange newState: \(newState)")
+        debugPrint("peerConnection didChange newState: \(newState)")
+        
+        var state: PeerConnectionState?
+        var error: WebRTCError?
+        
+        switch newState {
+        case .closed:
+            state = .closed
+        case .failed:
+            state = .failed
+        case .disconnected:
+            state = .disconnected
+        case .new:
+            state = .new
+        case .connecting:
+            state = .connecting
+        case .connected:
+            state = .connected
+        default:
+            error = .unknownPeerConnectionState
+        }
+
+        DispatchQueue.main.async {
+            self.delegate?.webRTC(self, didChangePeerConnectionState: state, with: error)
+        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
@@ -214,25 +239,6 @@ extension WebRTC: RTCPeerConnectionDelegate {
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
         debugPrint("peerConnection didChange newState: RTCIceConnectionState - \(newState)")
-        
-        switch newState {
-        case .new:
-            delegate?.webRTC(self, didChange: .new)
-        case .checking:
-            delegate?.webRTC(self, didChange: .checking)
-        case .connected:
-            delegate?.webRTC(self, didChange: .connected)
-        case .completed:
-            delegate?.webRTC(self, didChange: .completed)
-        case .failed:
-            delegate?.webRTC(self, didChange: .failed)
-        case .disconnected:
-            delegate?.webRTC(self, didChange: .disconnected)
-        case .closed:
-            delegate?.webRTC(self, didChange: .closed)
-        default:
-            print("Unknown RTCIceConnectionState: \(newState)")
-        }
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
