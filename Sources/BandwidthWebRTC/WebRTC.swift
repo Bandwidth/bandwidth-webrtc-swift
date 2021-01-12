@@ -24,10 +24,17 @@ public class WebRTC: NSObject {
         RTCInitializeSSL()
         let videoEncoderFactory = RTCDefaultVideoEncoderFactory()
         let videoDecoderFactory = RTCDefaultVideoDecoderFactory()
+        
         return RTCPeerConnectionFactory(encoderFactory: videoEncoderFactory, decoderFactory: videoDecoderFactory)
     }()
     
-    private let configuration = RTCConfiguration()
+    private let configuration: RTCConfiguration = {
+        var configuration = RTCConfiguration()
+        configuration.sdpSemantics = .unifiedPlan
+        
+        return configuration
+    }()
+    
     private let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
     
     private var localConnections = [Connection]()
