@@ -56,7 +56,7 @@ public class WebRTC: NSObject {
         }
     }
     
-    public func publish(mediaTypes: [MediaType]) {
+    public func publish(mediaTypes: [MediaType], completion: @escaping () -> Void) {
         signaling?.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
             self.signaling?.requestToPublish(mediaTypes: mediaTypes, alias: nil) { result in
                 guard let result = result else {
@@ -71,7 +71,9 @@ public class WebRTC: NSObject {
                 let localConnection = Connection(endpointId: result.endpointId, peerConnection: peerConnection)
                 self.localConnections.append(localConnection)
                 
-                self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection)
+                self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
+                    completion()
+                }
             }
         }
     }
@@ -115,7 +117,7 @@ public class WebRTC: NSObject {
         return audioTrack
     }
     
-    private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [String], for peerConnection: RTCPeerConnection) {
+    private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [String], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
         
         var mandatoryConstraints = [
@@ -157,6 +159,8 @@ public class WebRTC: NSObject {
                                 if let error = error {
                                     debugPrint(error.localizedDescription)
                                 }
+                                
+                                completion()
                             }
                         }
                     }
