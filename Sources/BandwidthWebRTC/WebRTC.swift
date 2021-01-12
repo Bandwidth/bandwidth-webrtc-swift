@@ -72,7 +72,9 @@ public class WebRTC: NSObject {
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    completion()
+                    DispatchQueue.main.async {
+                        completion()
+                    }
                 }
             }
         }
