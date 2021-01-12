@@ -88,7 +88,7 @@ public class WebRTC: NSObject {
                 let peerConnection = WebRTC.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
                 peerConnection.delegate = self
                 
-                self.createMediaSenders(peerConnection: peerConnection)
+                self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
                 let localConnection = Connection(endpointId: result.endpointId, peerConnection: peerConnection)
                 self.localConnections.append(localConnection)
@@ -151,18 +151,22 @@ public class WebRTC: NSObject {
         #endif
     }
     
-    private func createMediaSenders(peerConnection: RTCPeerConnection) {
+    private func createMediaSenders(peerConnection: RTCPeerConnection, audio: Bool, video: Bool) {
         let streamId = "stream"
         
         // Create an audio track for the peer connection.
-        let audioTrack = createAudioTrack()
-        peerConnection.add(audioTrack, streamIds: [streamId])
-        
+        if audio {
+            let audioTrack = createAudioTrack()
+            peerConnection.add(audioTrack, streamIds: [streamId])
+        }
+
         // Create a video track for the peer connection.
-//        let videoTrack = createVideoTrack()
-//        localVideoTrack = videoTrack
-//        peerConnection.add(videoTrack, streamIds: [streamId])
-//        remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
+        if video {
+            let videoTrack = createVideoTrack()
+            localVideoTrack = videoTrack
+            peerConnection.add(videoTrack, streamIds: [streamId])
+            remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
+        }
         
         // TODO: Data?
     }
