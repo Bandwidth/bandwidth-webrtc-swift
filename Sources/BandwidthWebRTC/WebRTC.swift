@@ -159,10 +159,10 @@ public class WebRTC: NSObject {
         peerConnection.add(audioTrack, streamIds: [streamId])
         
         // Create a video track for the peer connection.
-        let videoTrack = createVideoTrack()
-        peerConnection.add(videoTrack, streamIds: [streamId])
-        
-        remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
+//        let videoTrack = createVideoTrack()
+//        localVideoTrack = videoTrack
+//        peerConnection.add(videoTrack, streamIds: [streamId])
+//        remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
         
         // TODO: Data?
     }
