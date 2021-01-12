@@ -196,6 +196,10 @@ extension WebRTC: RTCPeerConnectionDelegate {
         debugPrint("peerConnectionShouldNegotiate")
     }
 
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
+        print("peerConnection didChange newState: \(newState)")
+    }
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
         debugPrint("peerConnection didChange stateChanged: \(stateChanged)")
     }
