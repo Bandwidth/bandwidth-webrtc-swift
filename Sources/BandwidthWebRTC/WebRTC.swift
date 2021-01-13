@@ -10,11 +10,6 @@ import WebRTC
 
 public protocol WebRTCDelegate: class {
     func webRTC(_ webRTC: WebRTC, didChangePeerConnectionState state: PeerConnectionState?, with error: WebRTCError?)
-    
-//    func webRTC(_ webRTC: WebRTC, didConnect signaling: Signaling)
-//    func webRTC(_ webRTC: WebRTC, didDisconnect signaling: Signaling)
-    func webRTC(_ webRTC: WebRTC, didReceiveRemoteSDP sdp: RTCSessionDescription)
-    func webRTC(_ webRTC: WebRTC, didReceiveRemoteICECandidate candidate: RTCIceCandidate)
 }
 
 public class WebRTC: NSObject {
@@ -269,8 +264,6 @@ public class WebRTC: NSObject {
         )
 
         connection.peerConnection.add(candidate)
-
-        delegate?.webRTC(self, didReceiveRemoteICECandidate: candidate)
     }
 }
 
@@ -347,14 +340,6 @@ extension WebRTC: RTCPeerConnectionDelegate {
 }
 
 extension WebRTC: SignalingDelegate {
-    func signaling(_ signaling: Signaling, didConnect isConnected: Bool) {
-//        delegate?.webRTC(self, didConnect: signaling)
-    }
-    
-    func signaling(_ signaling: Signaling, didDisconnect isConnected: Bool) {
-//        delegate?.webRTC(self, didDisconnect: signaling)
-    }
-    
     func signaling(_ signaling: Signaling, didReceiveSDPNeeded parameters: SDPNeededParameters) {
         handleSDPNeededEvent(parameters: parameters)
     }
