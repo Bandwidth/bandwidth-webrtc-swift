@@ -100,7 +100,7 @@ public class WebRTC: NSObject {
     
     // MARK: Media
     
-    func captureLocalVideo(renderer: RTCVideoRenderer) {
+    public func captureLocalVideo(renderer: RTCVideoRenderer) {
         guard let capturer = videoCapturer as? RTCCameraVideoCapturer else {
             return
         }
@@ -126,7 +126,7 @@ public class WebRTC: NSObject {
         localVideoTrack?.add(renderer)
     }
     
-    func renderRemoteVideo(renderer: RTCVideoRenderer) {
+    public func renderRemoteVideo(renderer: RTCVideoRenderer) {
         remoteVideoTrack?.add(renderer)
     }
     
