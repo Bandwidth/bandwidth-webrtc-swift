@@ -10,6 +10,7 @@ import WebRTC
 
 public protocol WebRTCDelegate: class {
     func webRTC(_ webRTC: WebRTC, didChangePeerConnectionState state: PeerConnectionState?, with error: WebRTCError?)
+    func webRTC(_ webRTC: WebRTC, streamUnavailableAt endpointId: String)
 }
 
 public class WebRTC: NSObject {
@@ -265,6 +266,10 @@ public class WebRTC: NSObject {
 
         connection.peerConnection.add(candidate)
     }
+    
+    private func endpointRemoved(with endpointId: String) {
+        delegate?.webRTC(self, streamUnavailableAt: endpointId)
+    }
 }
 
 extension WebRTC: RTCPeerConnectionDelegate {
@@ -349,6 +354,6 @@ extension WebRTC: SignalingDelegate {
     }
     
     func signaling(_ signaling: Signaling, didReceiveEndpointRemoved parameters: EndpointRemovedParameters) {
-        
+        endpointRemoved(with: parameters.endpointId)
     }
 }
