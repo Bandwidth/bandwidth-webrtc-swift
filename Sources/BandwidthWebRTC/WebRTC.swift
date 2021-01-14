@@ -27,7 +27,6 @@ public class WebRTC: NSObject {
     private let configuration: RTCConfiguration = {
         var configuration = RTCConfiguration()
         configuration.sdpSemantics = .unifiedPlan
-        
         return configuration
     }()
     
@@ -177,6 +176,7 @@ public class WebRTC: NSObject {
     
     private func createVideoTrack() -> RTCVideoTrack {
         let videoSource = WebRTC.factory.videoSource()
+        videoSource.adaptOutputFormat(toWidth: 1280, height: 720, fps: 30)
         
         #if targetEnvironment(simulator)
         videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
