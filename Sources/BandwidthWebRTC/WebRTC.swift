@@ -161,7 +161,6 @@ public class WebRTC: NSObject {
             localVideoTrack = videoTrack
             peerConnection.add(videoTrack, streamIds: [streamId])
             remoteVideoTrack = peerConnection.transceivers.first { $0.mediaType == .video }?.receiver.track as? RTCVideoTrack
-            remoteVideoTrack?.source.adaptOutputFormat(toWidth: 1280, height: 720, fps: 30)
         }
         
         // TODO: Data?
