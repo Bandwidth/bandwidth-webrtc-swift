@@ -277,10 +277,10 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
         
         guard let connection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
-         
-        delegate?.bandwidth(self, streamAvailableAt: connection, track: rtpReceiver.track)
         
-        remoteVideoTrack = rtpReceiver.track as? RTCVideoTrack
+        DispatchQueue.main.async {
+            self.delegate?.bandwidth(self, streamAvailableAt: connection, track: rtpReceiver.track)
+        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
