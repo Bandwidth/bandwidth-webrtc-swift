@@ -11,3 +11,9 @@ struct OfferSDPResult: Decodable {
     let sdpAnswer: String
     let candidates: [Candidate]?
 }
+
+struct Candidate: Codable {
+    let candidate: String
+    let sdpMLineIndex: Int
+    let sdpMid: String
+}

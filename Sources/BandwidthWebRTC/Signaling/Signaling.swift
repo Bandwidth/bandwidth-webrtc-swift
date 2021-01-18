@@ -30,7 +30,7 @@ class Signaling {
     
     var delegate: SignalingDelegate?
     
-    func connect(using token: String, completion: @escaping (RequestToPublishResult) -> Void) throws {
+    func connect(using token: String, completion: @escaping () -> Void) throws {
         var urlComponents = URLComponents()
         urlComponents.scheme = "wss"
         urlComponents.host = "device.webrtc.bandwidth.com"
@@ -60,19 +60,11 @@ class Signaling {
         }
 
         client.connect(url: url) {
-            self.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
-                self.requestToPublish(mediaTypes: ["AUDIO"], alias: nil) { result in
-                    guard let result = result else {
-                        return
-                    }
-                    
-                    completion(result)
-                }
-            }
+            completion()
         }
     }
     
-    private func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
+    func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
         let parameters = SetMediaPreferencesParameters(protocol: `protocol`, aggregationType: aggregationType, sendReceive: sendReceive)
         do {
             try client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
@@ -83,7 +75,7 @@ class Signaling {
         }
     }
     
-    private func requestToPublish(mediaTypes: [String], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
+    func requestToPublish(mediaTypes: [MediaType], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
         let parameters = RequestToPublishParameters(mediaTypes: mediaTypes, alias: alias)
         do {
             try client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
