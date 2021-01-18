@@ -9,7 +9,7 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt connection: RTCBandwidthConnection, track: RTCMediaStreamTrack?)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt connection: RTCBandwidthConnection, stream: RTCMediaStream?)
     func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
 }
 
@@ -44,7 +44,6 @@ public class RTCBandwidth: NSObject {
     private var videoCapturer: RTCVideoCapturer?
 
     private var localVideoTrack: RTCVideoTrack?
-    private var remoteVideoTrack: RTCVideoTrack?
     
     public var delegate: RTCBandwidthDelegate?
     
@@ -274,11 +273,8 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         
         guard let connection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
         
-        guard let videoTrack = mediaStreams.first?.videoTracks.first else { return }
-        
-        remoteVideoTrack = rtpReceiver.track as? RTCVideoTrack
         DispatchQueue.main.async {
-            self.delegate?.bandwidth(self, streamAvailableAt: connection, track: videoTrack)
+            self.delegate?.bandwidth(self, streamAvailableAt: connection, stream: mediaStreams.first)
         }
     }
     
