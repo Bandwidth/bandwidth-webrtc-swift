@@ -125,9 +125,9 @@ public class RTCBandwidth: NSObject {
         localVideoTrack?.add(renderer)
     }
     
-    public func renderRemoteVideo(renderer: RTCVideoRenderer) {
-        remoteVideoTrack?.add(renderer)
-    }
+//    public func renderRemoteVideo(renderer: RTCVideoRenderer) {
+//        remoteVideoTrack?.add(renderer)
+//    }
     
     func configureAudioSession() {
         #if os(iOS)
@@ -277,6 +277,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
         
         guard let connection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
+        
         remoteVideoTrack = rtpReceiver.track as? RTCVideoTrack
         DispatchQueue.main.async {
             self.delegate?.bandwidth(self, streamAvailableAt: connection, track: self.remoteVideoTrack)
