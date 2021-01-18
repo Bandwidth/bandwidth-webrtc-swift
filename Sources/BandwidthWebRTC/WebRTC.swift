@@ -161,8 +161,6 @@ public class WebRTC: NSObject {
             localVideoTrack = videoTrack
             peerConnection.add(videoTrack, streamIds: [streamId])
         }
-        
-        // TODO: Data?
     }
     
     private func createAudioTrack() -> RTCAudioTrack {
