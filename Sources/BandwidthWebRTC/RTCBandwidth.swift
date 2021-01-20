@@ -9,7 +9,7 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt connection: RTCBandwidthConnection, stream: RTCMediaStream?)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, mediaTypes: [MediaType], mediaStream: RTCMediaStream?, alias: String?, participantId: String?)
     func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
 }
 
@@ -84,7 +84,7 @@ public class RTCBandwidth: NSObject {
                 
                 self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
-                let localConnection = RTCBandwidthConnection(endpointId: result.endpointId, peerConnection: peerConnection, alias: alias, participantId: nil)
+                let localConnection = RTCBandwidthConnection(endpointId: result.endpointId, peerConnection: peerConnection, mediaTypes: mediaTypes, alias: alias, participantId: nil)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
@@ -197,7 +197,7 @@ public class RTCBandwidth: NSObject {
         return videoTrack
     }
     
-    private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [String], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
+    private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
         
         var mandatoryConstraints = [
@@ -206,8 +206,8 @@ public class RTCBandwidth: NSObject {
         ]
         
         if direction.contains("recv") {
-            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveAudio] = mediaTypes.contains("AUDIO") ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
-            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveVideo] = mediaTypes.contains("VIDEO") ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
+            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveAudio] = mediaTypes.contains(.audio) ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
+            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveVideo] = mediaTypes.contains(.video) ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
         }
         
         let constraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
@@ -251,7 +251,7 @@ public class RTCBandwidth: NSObject {
     
     private func handleSDPNeededEvent(parameters: SDPNeededParameters) {
         let peerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
-        let remoteConnection = RTCBandwidthConnection(endpointId: parameters.endpointId, peerConnection: peerConnection, alias: parameters.alias, participantId: parameters.participantId)
+        let remoteConnection = RTCBandwidthConnection(endpointId: parameters.endpointId, peerConnection: peerConnection, mediaTypes: parameters.mediaTypes, alias: parameters.alias, participantId: parameters.participantId)
         
         remoteConnections.append(remoteConnection)
         
@@ -288,10 +288,10 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
         debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
         
-        guard let connection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
+        guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
         
         DispatchQueue.main.async {
-            self.delegate?.bandwidth(self, streamAvailableAt: connection, stream: mediaStreams.first)
+            self.delegate?.bandwidth(self, streamAvailableAt: remoteConnection.endpointId, mediaTypes: remoteConnection.mediaTypes, mediaStream: mediaStreams.first, alias: remoteConnection.alias, participantId: remoteConnection.participantId)
         }
     }
     
@@ -323,6 +323,16 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         }
         
         signaling?.sendIceCandidate(endpointId: endpointId, candidate: candidate)
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
+        if [.disconnected, .failed].contains(newState) {
+            guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
+                return
+            }
+
+            delegate?.bandwidth(self, streamUnavailableAt: remoteConnection.endpointId)
+        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {

@@ -11,7 +11,7 @@ struct SDPNeededParameters: Codable {
     let alias: String
     let direction: String
     let endpointId: String
-    let mediaTypes: [String]
+    let mediaTypes: [MediaType]
     let participantId: String
 //    let streamProperties: Any? // TODO: What should this do?
 }
