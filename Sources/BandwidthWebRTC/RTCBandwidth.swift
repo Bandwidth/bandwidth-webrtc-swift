@@ -9,7 +9,7 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, mediaTypes: [MediaType], mediaStream: RTCMediaStream?, alias: String?, participantId: String?)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, participantId: String, alias: String?, mediaTypes: [MediaType], mediaStream: RTCMediaStream?)
     func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
 }
 
@@ -32,8 +32,8 @@ public class RTCBandwidth: NSObject {
     
     private let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
     
-    private var localConnections = [RTCBandwidthConnection]()
-    private var remoteConnections = [RTCBandwidthConnection]()
+    private var localConnections = [RTCConnection]()
+    private var remoteConnections = [RTCConnection]()
     
     #if os(iOS)
     private let audioSession =  RTCAudioSession.sharedInstance()
@@ -84,7 +84,7 @@ public class RTCBandwidth: NSObject {
                 
                 self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
-                let localConnection = RTCBandwidthConnection(endpointId: result.endpointId, peerConnection: peerConnection, mediaTypes: mediaTypes, alias: alias, participantId: nil)
+                let localConnection = RTCConnection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
@@ -250,13 +250,20 @@ public class RTCBandwidth: NSObject {
     }
     
     private func handleSDPNeededEvent(parameters: SDPNeededParameters) {
-        let peerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
-        let remoteConnection = RTCBandwidthConnection(endpointId: parameters.endpointId, peerConnection: peerConnection, mediaTypes: parameters.mediaTypes, alias: parameters.alias, participantId: parameters.participantId)
+        let remotePeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
+        
+        let remoteConnection = RTCConnection(
+            peerConnection: remotePeerConnection,
+            endpointId: parameters.endpointId,
+            participantId: parameters.participantId,
+            mediaTypes: parameters.mediaTypes,
+            alias: parameters.alias
+        )
         
         remoteConnections.append(remoteConnection)
         
-        negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: peerConnection) {
-            
+        negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: remotePeerConnection) {
+
         }
     }
     
@@ -291,7 +298,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
         
         DispatchQueue.main.async {
-            self.delegate?.bandwidth(self, streamAvailableAt: remoteConnection.endpointId, mediaTypes: remoteConnection.mediaTypes, mediaStream: mediaStreams.first, alias: remoteConnection.alias, participantId: remoteConnection.participantId)
+            self.delegate?.bandwidth(
+                self,
+                streamAvailableAt: remoteConnection.endpointId,
+                participantId: remoteConnection.participantId,
+                alias: remoteConnection.alias,
+                mediaTypes: remoteConnection.mediaTypes,
+                mediaStream: mediaStreams.first
+            )
         }
     }
     
