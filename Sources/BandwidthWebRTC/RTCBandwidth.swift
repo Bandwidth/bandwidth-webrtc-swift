@@ -88,9 +88,9 @@ public class RTCBandwidth: NSObject {
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    DispatchQueue.main.async {
+//                    DispatchQueue.main.async {
                         completion()
-                    }
+//                    }
                 }
             }
         }
@@ -213,7 +213,7 @@ public class RTCBandwidth: NSObject {
         let constraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
         
         peerConnection.offer(for: constraints) { offer, error in
-            DispatchQueue.main.async {
+//            DispatchQueue.main.async {
                 if let error = error {
                     print(error.localizedDescription)
                 }
@@ -228,7 +228,7 @@ public class RTCBandwidth: NSObject {
                     }
                 
                     peerConnection.setLocalDescription(offer) { error in
-                        DispatchQueue.main.async {
+//                        DispatchQueue.main.async {
                             if let error = error {
                                 debugPrint(error.localizedDescription)
                             }
@@ -242,10 +242,10 @@ public class RTCBandwidth: NSObject {
                                 
                                 completion()
                             }
-                        }
+//                        }
                     }
                 }
-            }
+//            }
         }
     }
     
@@ -297,7 +297,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         
         guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
         
-        DispatchQueue.main.async {
+//        DispatchQueue.main.async {
             self.delegate?.bandwidth(
                 self,
                 streamAvailableAt: remoteConnection.endpointId,
@@ -306,7 +306,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
                 mediaTypes: remoteConnection.mediaTypes,
                 mediaStream: mediaStreams.first
             )
-        }
+//        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
