@@ -16,6 +16,7 @@ enum SignalingMethod: String {
     case requestToPublish
     case sdpNeeded
     case setMediaPreferences
+    case unpublish
     case leave
 }
 
@@ -72,6 +73,13 @@ class Signaling {
         
         client.disconnect {
             
+        }
+    }
+    
+    func unpublish(endpointId: String, completion: @escaping () -> Void) {
+        let unpublishParameters = UnpublishParameters(endpointId: endpointId)
+        client.notify(method: SignalingMethod.unpublish.rawValue, parameters: unpublishParameters) { _ in
+            completion()
         }
     }
     
