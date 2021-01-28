@@ -16,7 +16,7 @@ enum SignalingMethod: String {
     case requestToPublish
     case sdpNeeded
     case setMediaPreferences
-    case unpublish
+    case leave
 }
 
 protocol SignalingDelegate {
@@ -64,6 +64,17 @@ class Signaling {
         }
     }
     
+    func disconnect() {
+        let leaveParameters = LeaveParameters()
+        client.notify(method: SignalingMethod.leave.rawValue, parameters: leaveParameters) { _ in
+            
+        }
+        
+        client.disconnect {
+            
+        }
+    }
+    
     func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
         let parameters = SetMediaPreferencesParameters(protocol: `protocol`, aggregationType: aggregationType, sendReceive: sendReceive)
         do {
@@ -101,9 +112,12 @@ class Signaling {
             sdpMLineIndex: Int(candidate.sdpMLineIndex),
             sdpMid: candidate.sdpMid ?? "")
         
-        try? client.notify(method: "addIceCandidate", parameters: parameters) { error in
-            if let error = error {
-                debugPrint(error.localizedDescription)
+        client.notify(method: "addIceCandidate", parameters: parameters) { result in
+            switch result {
+            case .success:
+                break
+            case .failure(let error):
+                print(error.localizedDescription)
             }
         }
     }
