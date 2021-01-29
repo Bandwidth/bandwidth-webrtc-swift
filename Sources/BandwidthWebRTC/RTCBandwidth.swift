@@ -96,6 +96,17 @@ public class RTCBandwidth: NSObject {
         }
     }
     
+    public func unpublish(endpointId: String) {
+        signaling?.unpublish(endpointId: endpointId) { result in
+
+        }
+        
+        if let index = localConnections.firstIndex(where: { $0.endpointId == endpointId }) {
+            localConnections[index].peerConnection.close()
+            localConnections.remove(at: index)
+        }
+    }
+    
     // MARK: Media
     
     public func captureLocalVideo(renderer: RTCVideoRenderer) {
