@@ -7,7 +7,7 @@
 
 import Foundation
 import JSONRPCWebSockets
-import WebRTC
+//import WebRTC
 
 enum SignalingMethod: String {
     case addICECandidate = "addIceCandidate"
@@ -113,20 +113,16 @@ class Signaling {
         }
     }
     
-    func sendIceCandidate(endpointId: String, candidate: RTCIceCandidate) {
-        let parameters = AddICECandidateSendParameters(
+    func sendIceCandidate(endpointId: String, sdp: String, sdpMLineIndex: Int, sdpMid: String, completion: @escaping (Result<(), Error>) -> Void) {
+        let addICECandidateParameters = AddICECandidateSendParameters(
             endpointId: endpointId,
-            candidate: candidate.sdp,
-            sdpMLineIndex: Int(candidate.sdpMLineIndex),
-            sdpMid: candidate.sdpMid ?? "")
+            candidate: sdp,
+            sdpMLineIndex: sdpMLineIndex,
+            sdpMid: sdpMid
+        )
         
-        client.notify(method: "addIceCandidate", parameters: parameters) { result in
-            switch result {
-            case .success:
-                break
-            case .failure(let error):
-                print(error.localizedDescription)
-            }
+        client.notify(method: SignalingMethod.addICECandidate.rawValue, parameters: addICECandidateParameters) { result in
+            completion(result)
         }
     }
 }

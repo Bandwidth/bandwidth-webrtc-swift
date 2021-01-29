@@ -307,17 +307,15 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
         
         guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
-        
-//        DispatchQueue.main.async {
-            self.delegate?.bandwidth(
-                self,
-                streamAvailableAt: remoteConnection.endpointId,
-                participantId: remoteConnection.participantId,
-                alias: remoteConnection.alias,
-                mediaTypes: remoteConnection.mediaTypes,
-                mediaStream: mediaStreams.first
-            )
-//        }
+
+        self.delegate?.bandwidth(
+            self,
+            streamAvailableAt: remoteConnection.endpointId,
+            participantId: remoteConnection.participantId,
+            alias: remoteConnection.alias,
+            mediaTypes: remoteConnection.mediaTypes,
+            mediaStream: mediaStreams.first
+        )
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
@@ -343,11 +341,18 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
     public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
         debugPrint("peerConnection didGenerate candidate: RTCIceCandidate")
         
-        guard let endpointId = remoteConnections.first(where: { $0.peerConnection == peerConnection })?.endpointId else {
+        guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
             return
         }
         
-        signaling?.sendIceCandidate(endpointId: endpointId, candidate: candidate)
+        signaling?.sendIceCandidate(
+            endpointId: remoteConnection.endpointId,
+            sdp: candidate.sdp,
+            sdpMLineIndex: Int(candidate.sdpMLineIndex),
+            sdpMid: candidate.sdpMid ?? ""
+        ) { _ in
+            
+        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
