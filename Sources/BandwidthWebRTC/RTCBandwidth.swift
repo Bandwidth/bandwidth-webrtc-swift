@@ -62,6 +62,10 @@ public class RTCBandwidth: NSObject {
         }
     }
     
+    public func disconnect() {
+        signaling?.disconnect()
+    }
+    
     public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
         var mediaTypes = [MediaType]()
         
@@ -88,9 +92,7 @@ public class RTCBandwidth: NSObject {
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-//                    DispatchQueue.main.async {
-                        completion()
-//                    }
+                    completion()
                 }
             }
         }
