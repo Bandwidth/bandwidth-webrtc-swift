@@ -76,10 +76,10 @@ class Signaling {
         }
     }
     
-    func unpublish(endpointId: String, completion: @escaping () -> Void) {
+    func unpublish(endpointId: String, completion: @escaping (Result<(), Error>) -> Void) {
         let unpublishParameters = UnpublishParameters(endpointId: endpointId)
-        client.notify(method: SignalingMethod.unpublish.rawValue, parameters: unpublishParameters) { _ in
-            completion()
+        client.notify(method: SignalingMethod.unpublish.rawValue, parameters: unpublishParameters) { result in
+            completion(result)
         }
     }
     
