@@ -358,6 +358,8 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
+        print("peerConnection didChange newState: \(newState)")
+        
         if [.disconnected, .failed].contains(newState) {
             guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
                 return
