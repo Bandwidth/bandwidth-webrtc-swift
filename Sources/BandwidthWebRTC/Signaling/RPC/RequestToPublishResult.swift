@@ -9,6 +9,7 @@ import Foundation
 
 struct RequestToPublishResult: Decodable {
     let endpointId: String
-    let mediaTypes: [String]
+    let participantId: String
+    let mediaTypes: [MediaType]
     let direction: String
 }

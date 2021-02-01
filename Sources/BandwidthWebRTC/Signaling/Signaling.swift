@@ -7,7 +7,6 @@
 
 import Foundation
 import JSONRPCWebSockets
-import WebRTC
 
 enum SignalingMethod: String {
     case addICECandidate = "addIceCandidate"
@@ -17,6 +16,7 @@ enum SignalingMethod: String {
     case sdpNeeded
     case setMediaPreferences
     case unpublish
+    case leave
 }
 
 protocol SignalingDelegate {
@@ -64,6 +64,24 @@ class Signaling {
         }
     }
     
+    func disconnect() {
+        let leaveParameters = LeaveParameters()
+        client.notify(method: SignalingMethod.leave.rawValue, parameters: leaveParameters) { _ in
+            
+        }
+        
+        client.disconnect {
+            
+        }
+    }
+    
+    func unpublish(endpointId: String, completion: @escaping (Result<(), Error>) -> Void) {
+        let unpublishParameters = UnpublishParameters(endpointId: endpointId)
+        client.notify(method: SignalingMethod.unpublish.rawValue, parameters: unpublishParameters) { result in
+            completion(result)
+        }
+    }
+    
     func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
         let parameters = SetMediaPreferencesParameters(protocol: `protocol`, aggregationType: aggregationType, sendReceive: sendReceive)
         do {
@@ -94,17 +112,16 @@ class Signaling {
         }
     }
     
-    func sendIceCandidate(endpointId: String, candidate: RTCIceCandidate) {
-        let parameters = AddICECandidateSendParameters(
+    func sendIceCandidate(endpointId: String, sdp: String, sdpMLineIndex: Int, sdpMid: String, completion: @escaping (Result<(), Error>) -> Void) {
+        let addICECandidateParameters = AddICECandidateSendParameters(
             endpointId: endpointId,
-            candidate: candidate.sdp,
-            sdpMLineIndex: Int(candidate.sdpMLineIndex),
-            sdpMid: candidate.sdpMid ?? "")
+            candidate: sdp,
+            sdpMLineIndex: sdpMLineIndex,
+            sdpMid: sdpMid
+        )
         
-        try? client.notify(method: "addIceCandidate", parameters: parameters) { error in
-            if let error = error {
-                debugPrint(error.localizedDescription)
-            }
+        client.notify(method: SignalingMethod.addICECandidate.rawValue, parameters: addICECandidateParameters) { result in
+            completion(result)
         }
     }
 }
