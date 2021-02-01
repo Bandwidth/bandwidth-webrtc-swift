@@ -1,5 +1,5 @@
 //
-//  RTCConnection.swift
+//  Connection.swift
 //
 //
 //  Created by Michael Hamer on 1/8/20.
@@ -8,7 +8,7 @@
 import Foundation
 import WebRTC
 
-public class RTCConnection {
+class Connection {
     let peerConnection: RTCPeerConnection
     let endpointId: String
     let participantId: String

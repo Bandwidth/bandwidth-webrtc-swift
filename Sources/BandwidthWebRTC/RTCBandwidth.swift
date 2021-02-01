@@ -32,8 +32,8 @@ public class RTCBandwidth: NSObject {
     
     private let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
     
-    private var localConnections = [RTCConnection]()
-    private var remoteConnections = [RTCConnection]()
+    private var localConnections = [Connection]()
+    private var remoteConnections = [Connection]()
     
     #if os(iOS)
     private let audioSession =  RTCAudioSession.sharedInstance()
@@ -88,7 +88,7 @@ public class RTCBandwidth: NSObject {
                 
                 self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
-                let localConnection = RTCConnection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
+                let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
@@ -265,7 +265,7 @@ public class RTCBandwidth: NSObject {
     private func handleSDPNeededEvent(parameters: SDPNeededParameters) {
         let remotePeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
         
-        let remoteConnection = RTCConnection(
+        let remoteConnection = Connection(
             peerConnection: remotePeerConnection,
             endpointId: parameters.endpointId,
             participantId: parameters.participantId,
