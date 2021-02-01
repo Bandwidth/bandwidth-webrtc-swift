@@ -7,7 +7,6 @@
 
 import Foundation
 import JSONRPCWebSockets
-//import WebRTC
 
 enum SignalingMethod: String {
     case addICECandidate = "addIceCandidate"
