@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "webrtc-swift",
+    name: "bandwidth-webrtc",
     platforms: [.iOS(.v13), .macOS(.v10_15)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
-        .package(url: "https://github.com/Bandwidth/json-rpc-websockets.git", .branch("dev")),
+        .package(url: "https://github.com/Bandwidth/json-rpc-websockets.git", .upToNextMajor(from: "0.1.0")),
         .package(url: "https://github.com/alexpiezo/WebRTC.git", .upToNextMajor(from: "1.1.31567"))
     ],
     targets: [
