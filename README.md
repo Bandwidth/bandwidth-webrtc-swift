@@ -6,7 +6,7 @@ In order to take advantage of this package a Bandwidth account with WebRTC Audio
 
 ## Samples
 
-A number of samples which take advantage of Bandwidth WebRTC Swift may be found within [Bandwidth-Samples](https://github.com/Bandwidth-Samples).
+A number of samples using Bandwidth WebRTC Swift may be found within [Bandwidth-Samples](https://github.com/Bandwidth-Samples).
 
 ## Compatibility
 
