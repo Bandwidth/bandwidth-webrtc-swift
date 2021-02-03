@@ -84,43 +84,49 @@ class Signaling {
     
     func setMediaPreferences(protocol: String, aggregationType: String, sendReceive: Bool, completion: @escaping (SetMediaPreferencesResult?) -> Void) {
         let parameters = SetMediaPreferencesParameters(protocol: `protocol`, aggregationType: aggregationType, sendReceive: sendReceive)
-        do {
-            try client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
+        client.call(method: SignalingMethod.setMediaPreferences.rawValue, parameters: parameters, type: SetMediaPreferencesResult.self) { result in
+            switch result {
+            case .success(let result):
                 completion(result)
+            case .failure(let error):
+                print(error)
             }
-        } catch let error {
-            debugPrint(error.localizedDescription)
         }
     }
     
     func requestToPublish(mediaTypes: [MediaType], alias: String?, completion: @escaping (RequestToPublishResult?) -> Void) {
         let parameters = RequestToPublishParameters(mediaTypes: mediaTypes, alias: alias)
-        do {
-            try client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
+        client.call(method: SignalingMethod.requestToPublish.rawValue, parameters: parameters, type: RequestToPublishResult.self) { result in
+            switch result {
+            case .success(let result):
                 completion(result)
+            case .failure(let error):
+                print(error)
             }
-        } catch let error {
-            debugPrint(error.localizedDescription)
         }
     }
     
     func offer(endpointId: String, sdp: String, completion: @escaping (OfferSDPResult?) -> Void) {
         let parameters = OfferSDPParameters(endpointId: endpointId, sdpOffer: sdp)
-        
-        try? client.call(method: "offerSdp", parameters: parameters, type: OfferSDPResult.self) { result in
-            completion(result)
+        client.call(method: SignalingMethod.offerSDP.rawValue, parameters: parameters, type: OfferSDPResult.self) { result in
+            switch result {
+            case .success(let result):
+                completion(result)
+            case .failure(let error):
+                print(error)
+            }
         }
     }
     
     func sendIceCandidate(endpointId: String, sdp: String, sdpMLineIndex: Int, sdpMid: String, completion: @escaping (Result<(), Error>) -> Void) {
-        let addICECandidateParameters = AddICECandidateSendParameters(
+        let parameters = AddICECandidateSendParameters(
             endpointId: endpointId,
             candidate: sdp,
             sdpMLineIndex: sdpMLineIndex,
             sdpMid: sdpMid
         )
         
-        client.notify(method: SignalingMethod.addICECandidate.rawValue, parameters: addICECandidateParameters) { result in
+        client.notify(method: SignalingMethod.addICECandidate.rawValue, parameters: parameters) { result in
             completion(result)
         }
     }
