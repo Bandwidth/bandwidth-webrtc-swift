@@ -357,11 +357,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         print("peerConnection didChange newState: \(newState)")
         
         if [.disconnected, .failed].contains(newState) {
-            guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
+            guard let index = remoteConnections.firstIndex(where: { $0.peerConnection == peerConnection }) else {
                 return
             }
-
-            delegate?.bandwidth(self, streamUnavailableAt: remoteConnection.endpointId)
+            
+            delegate?.bandwidth(self, streamUnavailableAt: remoteConnections[index].endpointId)
+            
+            remoteConnections[index].peerConnection.close()
+            remoteConnections.remove(at: index)
         }
     }
     
