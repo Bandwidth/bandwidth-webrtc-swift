@@ -226,39 +226,35 @@ public class RTCBandwidth: NSObject {
         let constraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
         
         peerConnection.offer(for: constraints) { offer, error in
-//            DispatchQueue.main.async {
-                if let error = error {
-                    print(error.localizedDescription)
-                }
-            
-                guard let offer = offer else {
+            if let error = error {
+                print(error.localizedDescription)
+            }
+        
+            guard let offer = offer else {
+                return
+            }
+        
+            self.signaling?.offer(endpointId: endpointId, sdp: offer.sdp) { result in
+                guard let result = result else {
                     return
                 }
-            
-                self.signaling?.offer(endpointId: endpointId, sdp: offer.sdp) { result in
-                    guard let result = result else {
-                        return
+
+                peerConnection.setLocalDescription(offer) { error in
+                    if let error = error {
+                        debugPrint(error.localizedDescription)
                     }
-                
-                    peerConnection.setLocalDescription(offer) { error in
-//                        DispatchQueue.main.async {
-                            if let error = error {
-                                debugPrint(error.localizedDescription)
-                            }
-                            
-                            let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
-                            
-                            peerConnection.setRemoteDescription(sdp) { error in
-                                if let error = error {
-                                    debugPrint(error.localizedDescription)
-                                }
-                                
-                                completion()
-                            }
-//                        }
+                    
+                    let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
+                    
+                    peerConnection.setRemoteDescription(sdp) { error in
+                        if let error = error {
+                            debugPrint(error.localizedDescription)
+                        }
+                        
+                        completion()
                     }
                 }
-//            }
+            }
         }
     }
     
