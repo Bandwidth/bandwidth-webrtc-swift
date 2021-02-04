@@ -290,10 +290,6 @@ public class RTCBandwidth: NSObject {
 
         connection.peerConnection.add(candidate)
     }
-    
-    private func endpointRemoved(with endpointId: String) {
-        delegate?.bandwidth(self, streamUnavailableAt: endpointId)
-    }
 }
 
 extension RTCBandwidth: RTCPeerConnectionDelegate {
@@ -387,6 +383,6 @@ extension RTCBandwidth: SignalingDelegate {
     }
     
     func signaling(_ signaling: Signaling, didReceiveEndpointRemoved parameters: EndpointRemovedParameters) {
-        endpointRemoved(with: parameters.endpointId)
+        delegate?.bandwidth(self, streamUnavailableAt: parameters.endpointId)
     }
 }
