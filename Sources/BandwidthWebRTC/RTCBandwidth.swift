@@ -192,11 +192,11 @@ public class RTCBandwidth: NSObject {
             localConnections
                 .filter { $0.endpointId == endpointId }
                 .compactMap { $0.peerConnection }
-                .forEach { setTrack(RTCAudioTrack.self, peerConnection: $0, isEnabled: isEnabled) }
+                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
         } else {
             localConnections
                 .compactMap { $0.peerConnection }
-                .forEach { setTrack(RTCAudioTrack.self, peerConnection: $0, isEnabled: isEnabled) }
+                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
         }
     }
     
