@@ -155,6 +155,9 @@ public class RTCBandwidth: NSObject {
     }
     
     #if os(iOS)
+    /// Determine whether the device's speaker should be in an enabled state.
+    ///
+    /// - Parameter isEnabled: A Boolean value indicating whether the device's speaker is in the enabled state.
     public func setSpeaker(_ isEnabled: Bool) {
         audioQueue.async {
             defer {
