@@ -155,7 +155,7 @@ public class RTCBandwidth: NSObject {
     }
     
     #if os(iOS)
-    public func setSpeaker(_ speaker: Bool) {
+    public func setSpeaker(_ isEnabled: Bool) {
         audioQueue.async {
             defer {
                 RTCAudioSession.sharedInstance().unlockForConfiguration()
@@ -163,7 +163,7 @@ public class RTCBandwidth: NSObject {
             
             RTCAudioSession.sharedInstance().lockForConfiguration()
             do {
-                try RTCAudioSession.sharedInstance().overrideOutputAudioPort(speaker ? .speaker : .none)
+                try RTCAudioSession.sharedInstance().overrideOutputAudioPort(isEnabled ? .speaker : .none)
             } catch {
                 debugPrint(error.localizedDescription)
             }
