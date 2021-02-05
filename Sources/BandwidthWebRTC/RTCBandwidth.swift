@@ -41,18 +41,6 @@ public class RTCBandwidth: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
-    private lazy var localAudioTrack: RTCAudioTrack = {
-        let audioTrackId = "audio_track_0"
-        return RTCBandwidth.factory.audioTrack(withTrackId: audioTrackId)
-    }()
-    
-    private lazy var localAudioStream: RTCMediaStream = {
-        let audioStreamId = "audio_stream_0"
-        let audioStream = RTCBandwidth.factory.mediaStream(withStreamId: audioStreamId)
-        audioStream.addAudioTrack(localAudioTrack)
-        return audioStream
-    }()
-    
     private var videoCapturer: RTCVideoCapturer?
 
     private var localVideoTrack: RTCVideoTrack?
@@ -188,7 +176,8 @@ public class RTCBandwidth: NSObject {
         
         // Create an audio track for the peer connection.
         if audio {
-            peerConnection.add(localAudioStream)
+            let audioTrack = createAudioTrack()
+            peerConnection.add(audioTrack, streamIds: [streamId])
         }
 
         // Create a video track for the peer connection.
