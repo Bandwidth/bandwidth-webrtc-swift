@@ -171,6 +171,41 @@ public class RTCBandwidth: NSObject {
     }
     #endif
     
+    /// Determine whether the local connection's audio should be in an enabled state. When `endpointId` is nil audio state will be set for all local connections.
+    ///
+    /// - Parameter endpointId: The endpoint id for the local connection.
+    /// - Parameter isEnabled: A Boolean value indicating whether the audio is in the enabled state.
+    public func setAudio(_ endpointId: String? = nil, isEnabled: Bool) {
+        setTrack(RTCAudioTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+    }
+    
+    /// Determine whether the local connection's video should be in an enabled state. When `endpointId` is nil video state will be set for all local connections.
+    ///
+    /// - Parameter endpointId: The endpoint id for the local connection.
+    /// - Parameter isEnabled: A Boolean value indicating whether the video is in the enabled state.
+    public func setVideo(_ endpointId: String? = nil, isEnabled: Bool) {
+        setTrack(RTCVideoTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+    }
+    
+    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, endpointId: String?, isEnabled: Bool) {
+        if let endpointId = endpointId {
+            localConnections
+                .filter { $0.endpointId == endpointId }
+                .compactMap { $0.peerConnection }
+                .forEach { setTrack(RTCAudioTrack.self, peerConnection: $0, isEnabled: isEnabled) }
+        } else {
+            localConnections
+                .compactMap { $0.peerConnection }
+                .forEach { setTrack(RTCAudioTrack.self, peerConnection: $0, isEnabled: isEnabled) }
+        }
+    }
+    
+    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, peerConnection: RTCPeerConnection, isEnabled: Bool) {
+        peerConnection.transceivers
+            .compactMap { $0.sender.track as? T }
+            .forEach { $0.isEnabled = isEnabled }
+    }
+    
     private func createMediaSenders(peerConnection: RTCPeerConnection, audio: Bool, video: Bool) {
         let streamId = "stream"
         
