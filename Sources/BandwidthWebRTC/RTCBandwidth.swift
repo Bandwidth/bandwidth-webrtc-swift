@@ -62,6 +62,7 @@ public class RTCBandwidth: NSObject {
         }
     }
     
+    /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
     public func disconnect() {
         signaling?.disconnect()
         localConnections.removeAll()
