@@ -64,6 +64,7 @@ public class RTCBandwidth: NSObject {
     
     public func disconnect() {
         signaling?.disconnect()
+        localConnections.removeAll()
     }
     
     public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
