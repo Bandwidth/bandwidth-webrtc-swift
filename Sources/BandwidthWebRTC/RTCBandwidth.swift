@@ -62,8 +62,10 @@ public class RTCBandwidth: NSObject {
         }
     }
     
+    /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
     public func disconnect() {
         signaling?.disconnect()
+        localConnections.removeAll()
     }
     
     public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
@@ -155,7 +157,10 @@ public class RTCBandwidth: NSObject {
     }
     
     #if os(iOS)
-    public func setSpeaker(_ speaker: Bool) {
+    /// Determine whether the device's speaker should be in an enabled state.
+    ///
+    /// - Parameter isEnabled: A Boolean value indicating whether the device's speaker is in the enabled state.
+    public func setSpeaker(_ isEnabled: Bool) {
         audioQueue.async {
             defer {
                 RTCAudioSession.sharedInstance().unlockForConfiguration()
@@ -163,13 +168,48 @@ public class RTCBandwidth: NSObject {
             
             RTCAudioSession.sharedInstance().lockForConfiguration()
             do {
-                try RTCAudioSession.sharedInstance().overrideOutputAudioPort(speaker ? .speaker : .none)
+                try RTCAudioSession.sharedInstance().overrideOutputAudioPort(isEnabled ? .speaker : .none)
             } catch {
                 debugPrint(error.localizedDescription)
             }
         }
     }
     #endif
+    
+    /// Determine whether the local connection's audio should be in an enabled state. When `endpointId` is nil audio state will be set for all local connections.
+    ///
+    /// - Parameter endpointId: The endpoint id for the local connection.
+    /// - Parameter isEnabled: A Boolean value indicating whether the audio is in the enabled state.
+    public func setAudio(_ endpointId: String? = nil, isEnabled: Bool) {
+        setTrack(RTCAudioTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+    }
+    
+    /// Determine whether the local connection's video should be in an enabled state. When `endpointId` is nil video state will be set for all local connections.
+    ///
+    /// - Parameter endpointId: The endpoint id for the local connection.
+    /// - Parameter isEnabled: A Boolean value indicating whether the video is in the enabled state.
+    public func setVideo(_ endpointId: String? = nil, isEnabled: Bool) {
+        setTrack(RTCVideoTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+    }
+    
+    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, endpointId: String?, isEnabled: Bool) {
+        if let endpointId = endpointId {
+            localConnections
+                .filter { $0.endpointId == endpointId }
+                .compactMap { $0.peerConnection }
+                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
+        } else {
+            localConnections
+                .compactMap { $0.peerConnection }
+                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
+        }
+    }
+    
+    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, peerConnection: RTCPeerConnection, isEnabled: Bool) {
+        peerConnection.transceivers
+            .compactMap { $0.sender.track as? T }
+            .forEach { $0.isEnabled = isEnabled }
+    }
     
     private func createMediaSenders(peerConnection: RTCPeerConnection, audio: Bool, video: Bool) {
         let streamId = "stream"
@@ -226,39 +266,35 @@ public class RTCBandwidth: NSObject {
         let constraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
         
         peerConnection.offer(for: constraints) { offer, error in
-//            DispatchQueue.main.async {
-                if let error = error {
-                    print(error.localizedDescription)
-                }
-            
-                guard let offer = offer else {
+            if let error = error {
+                print(error.localizedDescription)
+            }
+        
+            guard let offer = offer else {
+                return
+            }
+        
+            self.signaling?.offer(endpointId: endpointId, sdp: offer.sdp) { result in
+                guard let result = result else {
                     return
                 }
-            
-                self.signaling?.offer(endpointId: endpointId, sdp: offer.sdp) { result in
-                    guard let result = result else {
-                        return
+
+                peerConnection.setLocalDescription(offer) { error in
+                    if let error = error {
+                        debugPrint(error.localizedDescription)
                     }
-                
-                    peerConnection.setLocalDescription(offer) { error in
-//                        DispatchQueue.main.async {
-                            if let error = error {
-                                debugPrint(error.localizedDescription)
-                            }
-                            
-                            let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
-                            
-                            peerConnection.setRemoteDescription(sdp) { error in
-                                if let error = error {
-                                    debugPrint(error.localizedDescription)
-                                }
-                                
-                                completion()
-                            }
-//                        }
+                    
+                    let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
+                    
+                    peerConnection.setRemoteDescription(sdp) { error in
+                        if let error = error {
+                            debugPrint(error.localizedDescription)
+                        }
+                        
+                        completion()
                     }
                 }
-//            }
+            }
         }
     }
     
@@ -294,10 +330,6 @@ public class RTCBandwidth: NSObject {
 
         connection.peerConnection.add(candidate)
     }
-    
-    private func endpointRemoved(with endpointId: String) {
-        delegate?.bandwidth(self, streamUnavailableAt: endpointId)
-    }
 }
 
 extension RTCBandwidth: RTCPeerConnectionDelegate {
@@ -324,12 +356,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didChange stateChanged: \(stateChanged)")
     }
 
+    @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
-        debugPrint("peerConnection didAdd stream: RTCMediaStream")
+        
     }
 
+    @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
-        debugPrint("peerConnection didRemove stream: RTCMediaStream")
+        
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
@@ -361,11 +395,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         print("peerConnection didChange newState: \(newState)")
         
         if [.disconnected, .failed].contains(newState) {
-            guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
+            guard let index = remoteConnections.firstIndex(where: { $0.peerConnection == peerConnection }) else {
                 return
             }
-
-            delegate?.bandwidth(self, streamUnavailableAt: remoteConnection.endpointId)
+            
+            delegate?.bandwidth(self, streamUnavailableAt: remoteConnections[index].endpointId)
+            
+            remoteConnections[index].peerConnection.close()
+            remoteConnections.remove(at: index)
         }
     }
     
@@ -388,6 +425,6 @@ extension RTCBandwidth: SignalingDelegate {
     }
     
     func signaling(_ signaling: Signaling, didReceiveEndpointRemoved parameters: EndpointRemovedParameters) {
-        endpointRemoved(with: parameters.endpointId)
+        delegate?.bandwidth(self, streamUnavailableAt: parameters.endpointId)
     }
 }
