@@ -316,12 +316,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didChange stateChanged: \(stateChanged)")
     }
 
+    @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
-        debugPrint("peerConnection didAdd stream: RTCMediaStream")
+        
     }
 
+    @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
-        debugPrint("peerConnection didRemove stream: RTCMediaStream")
+        
     }
 
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
