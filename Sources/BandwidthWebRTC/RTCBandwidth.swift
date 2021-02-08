@@ -68,7 +68,7 @@ public class RTCBandwidth: NSObject {
         localConnections.removeAll()
     }
     
-    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
+    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping (String, RTCVideoTrack?) -> Void) {
         var mediaTypes = [MediaType]()
         
         if audio {
@@ -90,11 +90,17 @@ public class RTCBandwidth: NSObject {
                 
                 self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
+                if mediaTypes.contains(.video) {
+                    let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+                    peerConnection.add(videoTrack, streamIds: [UUID().uuidString])
+                }
+                
                 let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    completion()
+                    let videoTrack = peerConnection.senders.compactMap { $0.track as? RTCVideoTrack }.first
+                    completion(result.endpointId, videoTrack)
                 }
             }
         }
@@ -221,11 +227,11 @@ public class RTCBandwidth: NSObject {
         }
 
         // Create a video track for the peer connection.
-        if video {
-            let videoTrack = createVideoTrack()
-            localVideoTrack = videoTrack
-            peerConnection.add(videoTrack, streamIds: [streamId])
-        }
+//        if video {
+//            let videoTrack = createVideoTrack()
+//            localVideoTrack = videoTrack
+//            peerConnection.add(videoTrack, streamIds: [streamId])
+//        }
     }
     
     private func createAudioTrack() -> RTCAudioTrack {
