@@ -14,12 +14,14 @@ class Connection {
     let participantId: String
     let mediaTypes: [MediaType]
     let alias: String?
+    let videoTrack: RTCVideoTrack?
     
-    init(peerConnection: RTCPeerConnection, endpointId: String, participantId: String, mediaTypes: [MediaType], alias: String?) {
+    init(peerConnection: RTCPeerConnection, endpointId: String, participantId: String, mediaTypes: [MediaType], alias: String?, videoTrack: RTCVideoTrack?) {
         self.peerConnection = peerConnection
         self.endpointId = endpointId
         self.participantId = participantId
         self.mediaTypes = mediaTypes
         self.alias = alias
+        self.videoTrack = videoTrack
     }
 }
