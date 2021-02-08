@@ -90,20 +90,16 @@ public class RTCBandwidth: NSObject {
                 
                 self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
                 
-                var videoTrack: RTCVideoTrack?
-                
                 if mediaTypes.contains(.video) {
-                    videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-                    if let videoTrack = videoTrack {
-                        peerConnection.add(videoTrack, streamIds: [UUID().uuidString])
-                    }
+                    let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+                    peerConnection.add(videoTrack, streamIds: [UUID().uuidString])
                 }
                 
                 let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-//                    let videoTrack = peerConnection.senders.compactMap { $0.track as? RTCVideoTrack }.first
+                    let videoTrack = peerConnection.senders.compactMap { $0.track as? RTCVideoTrack }.first
                     completion(result.endpointId, videoTrack)
                 }
             }
