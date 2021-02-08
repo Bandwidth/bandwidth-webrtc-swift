@@ -99,11 +99,10 @@ public class RTCBandwidth: NSObject {
                     }
                 }
                 
-                let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias, videoTrack: videoTrack)
+                let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-//                    let videoTrack = peerConnection.senders.compactMap { $0.track as? RTCVideoTrack }.first
                     completion(result.endpointId, videoTrack)
                 }
             }
@@ -123,31 +122,50 @@ public class RTCBandwidth: NSObject {
     
     // MARK: Media
     
-    public func captureLocalVideo(renderer: RTCVideoRenderer) {
-        guard let capturer = videoCapturer as? RTCCameraVideoCapturer else {
-            return
-        }
-        
-        // Grab the front facing camera. TODO: Add support for additional cameras.
-        guard let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == .front }) else {
-            return
-        }
-        
-        // Grab the highest resolution available.
-        guard let format = RTCCameraVideoCapturer.supportedFormats(for: device)
-            .sorted(by: { CMVideoFormatDescriptionGetDimensions($0.formatDescription).width < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width })
-            .last else { return }
-        
-        // Grab the highest fps available.
-        guard let fps = format.videoSupportedFrameRateRanges
-            .compactMap({ $0.maxFrameRate })
-            .sorted()
-            .last else { return }
-        
-        capturer.startCapture(with: device, format: format, fps: Int(fps))
-        
-        localVideoTrack?.add(renderer)
-    }
+//    public func startCaptureVideo(_ endpointId: String, device: AVCaptureDevice, format: AVCaptureDevice.Format, fps: Int) {
+//        let connection = localConnections.first { $0.endpointId == endpointId }
+//        if let videoSource = connection?.videoTrack?.source {
+//            #if targetEnvironment(simulator)
+//            videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
+//            #else
+//            videoCapturer = RTCCameraVideoCapturer(delegate: videoSource)
+//            #endif
+//
+//            let cameraVideoCapturer = videoCapturer as? RTCCameraVideoCapturer
+//            cameraVideoCapturer?.startCapture(with: device, format: format, fps: fps)
+//        }
+//    }
+//
+//    public func stopCaptureVideo() {
+//        let cameraVideoCapture = videoCapturer as? RTCCameraVideoCapturer
+//        cameraVideoCapture?.stopCapture()
+//    }
+
+//    public func captureLocalVideo(renderer: RTCVideoRenderer) {
+//        guard let capturer = videoCapturer as? RTCCameraVideoCapturer else {
+//            return
+//        }
+//
+//        // Grab the front facing camera. TODO: Add support for additional cameras.
+//        guard let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == .front }) else {
+//            return
+//        }
+//
+//        // Grab the highest resolution available.
+//        guard let format = RTCCameraVideoCapturer.supportedFormats(for: device)
+//            .sorted(by: { CMVideoFormatDescriptionGetDimensions($0.formatDescription).width < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width })
+//            .last else { return }
+//
+//        // Grab the highest fps available.
+//        guard let fps = format.videoSupportedFrameRateRanges
+//            .compactMap({ $0.maxFrameRate })
+//            .sorted()
+//            .last else { return }
+//
+//        capturer.startCapture(with: device, format: format, fps: Int(fps))
+//
+//        localVideoTrack?.add(renderer)
+//    }
     
     func configureAudioSession() {
         #if os(iOS)
@@ -190,36 +208,36 @@ public class RTCBandwidth: NSObject {
     ///
     /// - Parameter endpointId: The endpoint id for the local connection.
     /// - Parameter isEnabled: A Boolean value indicating whether the audio is in the enabled state.
-    public func setAudio(_ endpointId: String? = nil, isEnabled: Bool) {
-        setTrack(RTCAudioTrack.self, endpointId: endpointId, isEnabled: isEnabled)
-    }
+//    public func setAudio(_ endpointId: String? = nil, isEnabled: Bool) {
+//        setTrack(RTCAudioTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+//    }
     
     /// Determine whether the local connection's video should be in an enabled state. When `endpointId` is nil video state will be set for all local connections.
     ///
     /// - Parameter endpointId: The endpoint id for the local connection.
     /// - Parameter isEnabled: A Boolean value indicating whether the video is in the enabled state.
-    public func setVideo(_ endpointId: String? = nil, isEnabled: Bool) {
-        setTrack(RTCVideoTrack.self, endpointId: endpointId, isEnabled: isEnabled)
-    }
+//    public func setVideo(_ endpointId: String? = nil, isEnabled: Bool) {
+//        setTrack(RTCVideoTrack.self, endpointId: endpointId, isEnabled: isEnabled)
+//    }
     
-    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, endpointId: String?, isEnabled: Bool) {
-        if let endpointId = endpointId {
-            localConnections
-                .filter { $0.endpointId == endpointId }
-                .compactMap { $0.peerConnection }
-                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
-        } else {
-            localConnections
-                .compactMap { $0.peerConnection }
-                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
-        }
-    }
+//    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, endpointId: String?, isEnabled: Bool) {
+//        if let endpointId = endpointId {
+//            localConnections
+//                .filter { $0.endpointId == endpointId }
+//                .compactMap { $0.peerConnection }
+//                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
+//        } else {
+//            localConnections
+//                .compactMap { $0.peerConnection }
+//                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
+//        }
+//    }
     
-    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, peerConnection: RTCPeerConnection, isEnabled: Bool) {
-        peerConnection.transceivers
-            .compactMap { $0.sender.track as? T }
-            .forEach { $0.isEnabled = isEnabled }
-    }
+//    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, peerConnection: RTCPeerConnection, isEnabled: Bool) {
+//        peerConnection.transceivers
+//            .compactMap { $0.sender.track as? T }
+//            .forEach { $0.isEnabled = isEnabled }
+//    }
     
     private func createMediaSenders(peerConnection: RTCPeerConnection, audio: Bool, video: Bool) {
         let streamId = "stream"
@@ -246,19 +264,24 @@ public class RTCBandwidth: NSObject {
         return audioTrack
     }
     
-    private func createVideoTrack() -> RTCVideoTrack {
-        let videoSource = RTCBandwidth.factory.videoSource()
-        
-        #if targetEnvironment(simulator)
-        videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
-        #else
-        videoCapturer = RTCCameraVideoCapturer(delegate: videoSource)
-        #endif
-        
-        let videoTrack = RTCBandwidth.factory.videoTrack(with: videoSource, trackId: "video0")
-        
-        return videoTrack
-    }
+    // publish { videoTrack in
+    //   let capturer = RTCCameraVideoCapturer(delegate: videoTrack.source)
+    //   capturer.startCapturing(device, fps, etc)
+    // }
+    
+//    private func createVideoTrack() -> RTCVideoTrack {
+//        let videoSource = RTCBandwidth.factory.videoSource()
+//
+//        #if targetEnvironment(simulator)
+//        videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
+//        #else
+//        videoCapturer = RTCCameraVideoCapturer(delegate: videoSource)
+//        #endif
+//
+//        let videoTrack = RTCBandwidth.factory.videoTrack(with: videoSource, trackId: "video0")
+//
+//        return videoTrack
+//    }
     
     private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
@@ -316,8 +339,7 @@ public class RTCBandwidth: NSObject {
             endpointId: parameters.endpointId,
             participantId: parameters.participantId,
             mediaTypes: parameters.mediaTypes,
-            alias: parameters.alias,
-            videoTrack: nil
+            alias: parameters.alias
         )
         
         remoteConnections.append(remoteConnection)
