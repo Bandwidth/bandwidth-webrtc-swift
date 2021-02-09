@@ -9,7 +9,7 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, participantId: String, alias: String?, mediaTypes: [MediaType], mediaStream: RTCMediaStream?)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, participantId: String, alias: String?, mediaTypes: [MediaType], rtpReceiver: RTCRtpReceiver)
     func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
 }
 
@@ -41,10 +41,6 @@ public class RTCBandwidth: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
-    private var videoCapturer: RTCVideoCapturer?
-
-    private var localVideoTrack: RTCVideoTrack?
-    
     public var delegate: RTCBandwidthDelegate?
     
     public override init() {
@@ -53,6 +49,12 @@ public class RTCBandwidth: NSObject {
         configureAudioSession()
     }
     
+    
+    /// Connect to the signaling server to start publishing media.
+    /// - Parameters:
+    ///   - token: Token returned from Bandwidth's servers giving permission to access WebRTC.
+    ///   - completion: The completion handler to call when the connect request is complete.
+    /// - Throws: Throw when a connection to the signaling server experiences an error.
     public func connect(using token: String, completion: @escaping () -> Void) throws {
         signaling = Signaling()
         signaling?.delegate = self
@@ -67,8 +69,14 @@ public class RTCBandwidth: NSObject {
         signaling?.disconnect()
         localConnections.removeAll()
     }
-    
-    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping () -> Void) {
+
+    /// Starts the signaling server publishing and calls a handler upon completion.
+    /// - Parameters:
+    ///   - audio: Request to publish audio.
+    ///   - video: Request to publish video.
+    ///   - alias: Optionally include an alias to assign to the request.
+    ///   - completion: The completion handler to call when the publish request is complete.
+    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping (String, [MediaType], RTCRtpSender?, RTCRtpSender?) -> Void) {
         var mediaTypes = [MediaType]()
         
         if audio {
@@ -85,21 +93,36 @@ public class RTCBandwidth: NSObject {
                     return
                 }
                 
-                let peerConnection = RTCBandwidth.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
-                peerConnection.delegate = self
+                let peerConnection = RTCBandwidth.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: self)
                 
-                self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
+                var audioSender: RTCRtpSender?
+                var videoSender: RTCRtpSender?
                 
+                let streamId = UUID().uuidString
+                
+                if mediaTypes.contains(.audio) {
+                    let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+                    audioSender = peerConnection.add(audioTrack, streamIds: [streamId])
+                }
+                
+                if mediaTypes.contains(.video) {
+                    let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+                    videoSender = peerConnection.add(videoTrack, streamIds: [streamId])
+                }
+
                 let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    completion()
+                    completion(result.endpointId, result.mediaTypes, audioSender, videoSender)
                 }
             }
         }
     }
     
+    /// Stops the signaling server from publishing `endpointId` and close the associated `RTCPeerConnection`.
+    ///
+    /// - Parameter endpointId: The endpoint id for the local connection.
     public func unpublish(endpointId: String) {
         signaling?.unpublish(endpointId: endpointId) { result in
 
@@ -112,32 +135,6 @@ public class RTCBandwidth: NSObject {
     }
     
     // MARK: Media
-    
-    public func captureLocalVideo(renderer: RTCVideoRenderer) {
-        guard let capturer = videoCapturer as? RTCCameraVideoCapturer else {
-            return
-        }
-        
-        // Grab the front facing camera. TODO: Add support for additional cameras.
-        guard let device = RTCCameraVideoCapturer.captureDevices().first(where: { $0.position == .front }) else {
-            return
-        }
-        
-        // Grab the highest resolution available.
-        guard let format = RTCCameraVideoCapturer.supportedFormats(for: device)
-            .sorted(by: { CMVideoFormatDescriptionGetDimensions($0.formatDescription).width < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width })
-            .last else { return }
-        
-        // Grab the highest fps available.
-        guard let fps = format.videoSupportedFrameRateRanges
-            .compactMap({ $0.maxFrameRate })
-            .sorted()
-            .last else { return }
-        
-        capturer.startCapture(with: device, format: format, fps: Int(fps))
-        
-        localVideoTrack?.add(renderer)
-    }
     
     func configureAudioSession() {
         #if os(iOS)
@@ -175,81 +172,7 @@ public class RTCBandwidth: NSObject {
         }
     }
     #endif
-    
-    /// Determine whether the local connection's audio should be in an enabled state. When `endpointId` is nil audio state will be set for all local connections.
-    ///
-    /// - Parameter endpointId: The endpoint id for the local connection.
-    /// - Parameter isEnabled: A Boolean value indicating whether the audio is in the enabled state.
-    public func setAudio(_ endpointId: String? = nil, isEnabled: Bool) {
-        setTrack(RTCAudioTrack.self, endpointId: endpointId, isEnabled: isEnabled)
-    }
-    
-    /// Determine whether the local connection's video should be in an enabled state. When `endpointId` is nil video state will be set for all local connections.
-    ///
-    /// - Parameter endpointId: The endpoint id for the local connection.
-    /// - Parameter isEnabled: A Boolean value indicating whether the video is in the enabled state.
-    public func setVideo(_ endpointId: String? = nil, isEnabled: Bool) {
-        setTrack(RTCVideoTrack.self, endpointId: endpointId, isEnabled: isEnabled)
-    }
-    
-    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, endpointId: String?, isEnabled: Bool) {
-        if let endpointId = endpointId {
-            localConnections
-                .filter { $0.endpointId == endpointId }
-                .compactMap { $0.peerConnection }
-                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
-        } else {
-            localConnections
-                .compactMap { $0.peerConnection }
-                .forEach { setTrack(T.self, peerConnection: $0, isEnabled: isEnabled) }
-        }
-    }
-    
-    private func setTrack<T: RTCMediaStreamTrack>(_ type: T.Type, peerConnection: RTCPeerConnection, isEnabled: Bool) {
-        peerConnection.transceivers
-            .compactMap { $0.sender.track as? T }
-            .forEach { $0.isEnabled = isEnabled }
-    }
-    
-    private func createMediaSenders(peerConnection: RTCPeerConnection, audio: Bool, video: Bool) {
-        let streamId = "stream"
-        
-        // Create an audio track for the peer connection.
-        if audio {
-            let audioTrack = createAudioTrack()
-            peerConnection.add(audioTrack, streamIds: [streamId])
-        }
 
-        // Create a video track for the peer connection.
-        if video {
-            let videoTrack = createVideoTrack()
-            localVideoTrack = videoTrack
-            peerConnection.add(videoTrack, streamIds: [streamId])
-        }
-    }
-    
-    private func createAudioTrack() -> RTCAudioTrack {
-        let audioConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
-        let audioSource = RTCBandwidth.factory.audioSource(with: audioConstraints)
-        let audioTrack = RTCBandwidth.factory.audioTrack(with: audioSource, trackId: "audio0")
-
-        return audioTrack
-    }
-    
-    private func createVideoTrack() -> RTCVideoTrack {
-        let videoSource = RTCBandwidth.factory.videoSource()
-        
-        #if targetEnvironment(simulator)
-        videoCapturer = RTCFileVideoCapturer(delegate: videoSource)
-        #else
-        videoCapturer = RTCCameraVideoCapturer(delegate: videoSource)
-        #endif
-        
-        let videoTrack = RTCBandwidth.factory.videoTrack(with: videoSource, trackId: "video0")
-        
-        return videoTrack
-    }
-    
     private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
         
@@ -312,7 +235,7 @@ public class RTCBandwidth: NSObject {
         remoteConnections.append(remoteConnection)
         
         negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: remotePeerConnection) {
-
+            
         }
     }
     
@@ -341,14 +264,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
         
         guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
-
+        
         self.delegate?.bandwidth(
             self,
             streamAvailableAt: remoteConnection.endpointId,
             participantId: remoteConnection.participantId,
             alias: remoteConnection.alias,
             mediaTypes: remoteConnection.mediaTypes,
-            mediaStream: mediaStreams.first
+            rtpReceiver: rtpReceiver
         )
     }
     
