@@ -68,7 +68,7 @@ public class RTCBandwidth: NSObject {
         localConnections.removeAll()
     }
     
-    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping (String, RTCVideoTrack?) -> Void) {
+    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping (String, [MediaType], RTCAudioTrack?, RTCVideoTrack?) -> Void) {
         var mediaTypes = [MediaType]()
         
         if audio {
@@ -88,14 +88,27 @@ public class RTCBandwidth: NSObject {
                 let peerConnection = RTCBandwidth.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: nil)
                 peerConnection.delegate = self
                 
-                self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
-                                                
+//                self.createMediaSenders(peerConnection: peerConnection, audio: audio, video: video)
+                
+                var audioTrack: RTCAudioTrack?
                 var videoTrack: RTCVideoTrack?
+                
+                let streamId = UUID().uuidString
+                
+                var audioSender: RTCRtpSender?
+                var videoSender: RTCRtpSender?
+                
+                if mediaTypes.contains(.audio) {
+                    audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+                    if let audioTrack = audioTrack {
+                        audioSender = peerConnection.add(audioTrack, streamIds: [streamId])
+                    }
+                }
                 
                 if mediaTypes.contains(.video) {
                     videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
                     if let videoTrack = videoTrack {
-                        peerConnection.add(videoTrack, streamIds: [UUID().uuidString])
+                        videoSender = peerConnection.add(videoTrack, streamIds: [streamId])
                     }
                 }
                 
@@ -103,7 +116,7 @@ public class RTCBandwidth: NSObject {
                 self.localConnections.append(localConnection)
                 
                 self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    completion(result.endpointId, videoTrack)
+                    completion(result.endpointId, result.mediaTypes, audioTrack, videoTrack)
                 }
             }
         }
