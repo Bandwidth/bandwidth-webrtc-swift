@@ -16,7 +16,7 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
         .package(url: "https://github.com/Bandwidth/json-rpc-websockets.git", .upToNextMajor(from: "0.1.0")),
-        .package(url: "https://github.com/alexpiezo/WebRTC.git", .upToNextMajor(from: "1.1.31567"))
+        .package(url: "https://github.com/Bandwidth/webrtc-swift.git", .upToNextMajor(from: "1.0.0"))
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -24,7 +24,7 @@ let package = Package(
         .target(
             name: "BandwidthWebRTC",
             dependencies: [.product(name: "JSONRPCWebSockets", package: "json-rpc-websockets"),
-                           .product(name: "WebRTC", package: "WebRTC")]),
+                           .product(name: "WebRTC", package: "webrtc-swift")]),
         .testTarget(
             name: "BandwidthWebRTCTests",
             dependencies: ["BandwidthWebRTC"]),
