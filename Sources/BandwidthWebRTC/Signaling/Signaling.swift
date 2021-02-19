@@ -27,7 +27,7 @@ protocol SignalingDelegate {
 
 class Signaling {
     private let client = Client()
-    
+        
     var delegate: SignalingDelegate?
     
     func connect(using token: String, completion: @escaping () -> Void) throws {
@@ -44,6 +44,12 @@ class Signaling {
             throw SignalingError.invalidWebSocketURL
         }
         
+        try connect(to: url) {
+            completion()
+        }
+    }
+    
+    func connect(to url: URL, completion: @escaping () -> Void) throws {
         try client.subscribe(to: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self)
         client.on(method: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self) { parameters in
             self.delegate?.signaling(self, didReceiveEndpointRemoved: parameters)
