@@ -27,7 +27,7 @@ protocol SignalingDelegate {
 
 class Signaling {
     private let client = Client()
-        
+    
     var delegate: SignalingDelegate?
     
     func connect(using token: String, completion: @escaping () -> Void) throws {

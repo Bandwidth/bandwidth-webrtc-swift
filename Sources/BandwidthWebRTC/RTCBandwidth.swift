@@ -81,6 +81,7 @@ public class RTCBandwidth: NSObject {
     /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
     public func disconnect() {
         signaling?.disconnect()
+        localConnections.forEach { $0.peerConnection.senders.forEach { $0.track?.isEnabled = false } }
         localConnections.removeAll()
     }
 
@@ -186,7 +187,7 @@ public class RTCBandwidth: NSObject {
         }
     }
     #endif
-
+    
     private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
         
