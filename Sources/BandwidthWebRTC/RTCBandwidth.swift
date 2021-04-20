@@ -64,9 +64,24 @@ public class RTCBandwidth: NSObject {
         }
     }
     
+    /// Connect to the signaling server to start publishing media.
+    /// - Parameters:
+    ///   - url: Complete URL containing everything required to access WebRTC.
+    ///   - completion: The completion handler to call when the connect request is complete.
+    /// - Throws: Throw when a connection to the signaling server experiences an error.
+    public func connect(to url: URL, completion: @escaping () -> Void) throws {
+        signaling = Signaling()
+        signaling?.delegate = self
+        
+        try signaling?.connect(to: url) {
+            completion()
+        }
+    }
+    
     /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
     public func disconnect() {
         signaling?.disconnect()
+        localConnections.forEach { $0.peerConnection.senders.forEach { $0.track?.isEnabled = false } }
         localConnections.removeAll()
     }
 
@@ -172,7 +187,7 @@ public class RTCBandwidth: NSObject {
         }
     }
     #endif
-
+    
     private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
         debugPrint(direction)
         
