@@ -30,13 +30,14 @@ class Signaling {
     
     var delegate: SignalingDelegate?
     
-    func connect(using token: String, completion: @escaping () -> Void) throws {
+    func connect(using token: String, sdkVersion: String, completion: @escaping () -> Void) throws {
         var urlComponents = URLComponents()
         urlComponents.scheme = "wss"
         urlComponents.host = "device.webrtc.bandwidth.com"
         urlComponents.path = "/v2"
         urlComponents.queryItems = [
             URLQueryItem(name: "token", value: token),
+            URLQueryItem(name: "sdkVersion", value: sdkVersion),
             URLQueryItem(name: "uniqueId", value: UUID().uuidString)
         ]
         
