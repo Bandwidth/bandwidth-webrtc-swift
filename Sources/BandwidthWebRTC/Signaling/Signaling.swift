@@ -52,21 +52,6 @@ class Signaling {
             client.on(method: SignalingMethod.offerSDP.rawValue, type: IncomingOfferSDPParams.self) { parameters in
                 self.delegate?.signaling(self, didRecieveOfferSDP: parameters)
             }
-            
-//            try client.subscribe(to: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self)
-//            client.on(method: SignalingMethod.endpointRemoved.rawValue, type: EndpointRemovedParameters.self) { parameters in
-//                self.delegate?.signaling(self, didReceiveEndpointRemoved: parameters)
-//            }
-//
-//            try client.subscribe(to: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self)
-//            client.on(method: SignalingMethod.sdpNeeded.rawValue, type: SDPNeededParameters.self) { parameters in
-//                self.delegate?.signaling(self, didReceiveSDPNeeded: parameters)
-//            }
-//
-//            try client.subscribe(to: SignalingMethod.addICECandidate.rawValue, type: AddICECandidateParameters.self)
-//            client.on(method: SignalingMethod.addICECandidate.rawValue, type: AddICECandidateParameters.self) { parameters in
-//                self.delegate?.signaling(self, didReceiveAddICECandidate: parameters)
-//            }
         } catch {
             completion(.failure(error))
         }

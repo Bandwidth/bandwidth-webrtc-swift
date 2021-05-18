@@ -88,15 +88,15 @@ public class RTCBandwidth: NSObject {
         signaling?.disconnect()
     }
 
-    public func publish(alias: String?) {
+    public func publish(alias: String?, completion: @escaping (RTCMediaStream) -> Void) {
         if publishingPeerConnection == nil {
-            setupPublishingPeerConnection {
-                
+            setupPublishingPeerConnection { mediaStream in
+                completion(mediaStream)
             }
         }
     }
     
-    private func setupPublishingPeerConnection(completion: @escaping () -> Void) {
+    private func setupPublishingPeerConnection(completion: @escaping (RTCMediaStream) -> Void) {
         publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: PeerConnectionAdapter(
             didChangePeerConnectionState: { peerConnection, state in
                 if state == .failed {
@@ -116,13 +116,23 @@ public class RTCBandwidth: NSObject {
         let streamId = UUID().uuidString
         
         let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-        publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
-        
         let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-        publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+        
+        let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: streamId)
+        mediaStream.addAudioTrack(audioTrack)
+        mediaStream.addVideoTrack(videoTrack)
+        
+//        publishingPeerConnection?.add(mediaStream)
+        
+        let transceiverInit = RTCRtpTransceiverInit()
+        transceiverInit.direction = .sendOnly
+        transceiverInit.streamIds = [mediaStream.streamId]
+        
+        publishingPeerConnection?.addTransceiver(with: audioTrack, init: transceiverInit)
+        publishingPeerConnection?.addTransceiver(with: videoTrack, init: transceiverInit)
         
         offerPublishSDP {
-            
+            completion(mediaStream)
         }
     }
     
