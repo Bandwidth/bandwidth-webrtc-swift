@@ -99,16 +99,29 @@ public class RTCBandwidth: NSObject {
 
     public func publish(alias: String?, completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
         setupPublishingPeerConnection {
-            let streamId = UUID().uuidString
+//            let streamId = UUID().uuidString
+            
+            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
             
             let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
+            mediaStream.addAudioTrack(audioTrack)
+            
+//            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
             
             let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+            mediaStream.addVideoTrack(videoTrack)
+//            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+            
+//            let transceiverInit = RTCRtpTransceiverInit()
+            
+            self.publishingPeerConnection?.addTransceiver(with: audioTrack)
+            self.publishingPeerConnection?.addTransceiver(with: videoTrack)
+            
+            let publishMetadata = StreamPublishMetadata(alias: "usermedia")
+            self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
             
             self.offerPublishSDP { result in
-                completion(audioSender, videoSender)
+                completion(nil, nil) // TODO: temp return nil
             }
         }
     }
