@@ -32,10 +32,19 @@ public class RTCBandwidth: NSObject {
     
     private let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
     
-    // One peer for published (outgoing) streams.
+    // One peer for all published (outgoing) streams, one for all subscribed (incoming) streams.
     private var publishingPeerConnection: RTCPeerConnection?
-    // One peer for subscribed (incoming) streams.
     private var subscribingPeerConnection: RTCPeerConnection?
+    
+    // Standard data channels used for platform diagnostics and health checks.
+    private var publishHeartbeatDataChannel: RTCDataChannel?
+    private var publishDiagnosticsDataChannel: RTCDataChannel?
+    private var publishedDataChannels: [String: RTCDataChannel] = [:]
+    private var subscribeHeartbeatDataChannel: RTCDataChannel?
+    private var subscribeDiagnosticsDataChannel: RTCDataChannel?
+    private var subscribeDataChannels: [String: RTCDataChannel] = [:]
+    
+    private var publishDataChannelAdapter: DataChannelAdapter?
     
     // Published (outgoing) streams keyed by media stream id (msid).
     private var publishedStreams: [String: PublishedStream] = [:]
@@ -91,6 +100,18 @@ public class RTCBandwidth: NSObject {
     public func publish(alias: String?, completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
         setupPublishingPeerConnection {
             
+            if let publishingPeerConnection = self.publishingPeerConnection {
+                if let heartbeatDataChannel = self.addHeartbeatDataChannel(peerConnection: publishingPeerConnection) {
+                    self.publishedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
+                    self.publishHeartbeatDataChannel = heartbeatDataChannel
+                }
+                
+                if let diagnosticsDataChannel = self.addDiagnosticsDataChannel(peerConnection: publishingPeerConnection) {
+                    self.publishedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
+                    self.publishDiagnosticsDataChannel = diagnosticsDataChannel
+                }
+            }
+                
             let streamId = UUID().uuidString
             
             let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
@@ -103,6 +124,32 @@ public class RTCBandwidth: NSObject {
                 completion(audioSender, videoSender)
             }
         }
+    }
+    
+    private func addHeartbeatDataChannel(peerConnection: RTCPeerConnection) -> RTCDataChannel? {
+        let configuration = RTCDataChannelConfiguration()
+        configuration.channelId = 0
+        configuration.isNegotiated = true
+        configuration.protocol = "udp"
+        
+        return peerConnection.dataChannel(forLabel: "__heartbeat__", configuration: configuration)
+    }
+    
+    private func addDiagnosticsDataChannel(peerConnection: RTCPeerConnection) -> RTCDataChannel? {
+        let configuration = RTCDataChannelConfiguration()
+        configuration.channelId = 1
+        configuration.isNegotiated = true
+        configuration.protocol = "udp"
+        
+        let dataChannel = peerConnection.dataChannel(forLabel: "__diagnostics__", configuration: configuration)
+        publishDataChannelAdapter = DataChannelAdapter(
+            didReceiveMessageWithBuffer: { _, buffer in
+                debugPrint("Diagnostics Received: \(String(data: buffer.data, encoding: .utf8) ?? "")")
+            }
+        )
+        dataChannel?.delegate = publishDataChannelAdapter
+        
+        return dataChannel
     }
     
     private func setupPublishingPeerConnection(completion: @escaping () -> Void) {
@@ -173,7 +220,8 @@ public class RTCBandwidth: NSObject {
             }
             
             let mediaStreams = self.publishedStreams.mapValues { $0.metadata }
-            let publishMetadata = PublishMetadata(mediaStreams: mediaStreams)
+            let dataChannels = self.publishedDataChannels.mapValues { DataChannelPublishMetadata(label: $0.label, streamId: $0.channelId) }
+            let publishMetadata = PublishMetadata(mediaStreams: mediaStreams, dataChannels: dataChannels)
             
             self.signaling?.offer(sdp: localSDPOffer.sdp, publishMetadata: publishMetadata) { result in
                 

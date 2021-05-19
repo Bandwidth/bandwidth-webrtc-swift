@@ -7,5 +7,5 @@
 
 struct PublishMetadata: Codable {
     let mediaStreams: [String: StreamPublishMetadata]
-    // let dataChannels: {}
+    let dataChannels: [String: DataChannelPublishMetadata]
 }
