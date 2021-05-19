@@ -89,18 +89,32 @@ public class RTCBandwidth: NSObject {
     }
 
     public func publish(alias: String?, completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
-        if publishingPeerConnection == nil {
-            setupPublishingPeerConnection { audioRTPSender, videoRTPSender in
-                completion(audioRTPSender, videoRTPSender)
+        setupPublishingPeerConnection {
+            
+            let streamId = UUID().uuidString
+            
+            let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
+            
+            let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+            
+            self.offerPublishSDP { result in
+                completion(audioSender, videoSender)
             }
         }
     }
     
-    private func setupPublishingPeerConnection(completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
+    private func setupPublishingPeerConnection(completion: @escaping () -> Void) {
+        guard publishingPeerConnection == nil else {
+            completion()
+            return
+        }
+        
         publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: PeerConnectionAdapter(
             didChangePeerConnectionState: { peerConnection, state in
                 if state == .failed {
-                    self.offerPublishSDP(restartICE: true) {
+                    self.offerPublishSDP(restartICE: true) { _ in
                         
                     }
                 }
@@ -113,27 +127,19 @@ public class RTCBandwidth: NSObject {
             })
         )
         
-        let streamId = UUID().uuidString
-        
-        let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-        let audioSender = publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
-        
-        let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-        let videoSender = publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
-        
-//        let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: streamId)
-//        mediaStream.addAudioTrack(audioTrack)
-//        mediaStream.addVideoTrack(videoTrack)
-        
-//        let transceiverInit = RTCRtpTransceiverInit()
-//        transceiverInit.direction = .sendOnly
-//        transceiverInit.streamIds = [mediaStream.streamId]
-        
-//        publishingPeerConnection?.addTransceiver(with: audioTrack, init: transceiverInit)
-//        publishingPeerConnection?.addTransceiver(with: videoTrack, init: transceiverInit)
-        
-        offerPublishSDP {
-            completion(audioSender, videoSender)
+        offerPublishSDP { _ in
+            
+            // (Re)publish any existing media streams.
+            if !self.publishedStreams.isEmpty {
+                // TODO: self.publishedStreams.forEach...
+                // TODO: addStreamToPublishingPeerConnection(self.publishedStream.mediaStream)
+                
+                self.offerPublishSDP { _ in
+                    completion()
+                }
+            }
+            
+            completion()
         }
     }
     
@@ -151,7 +157,7 @@ public class RTCBandwidth: NSObject {
         )
     }
     
-    private func offerPublishSDP(restartICE: Bool = false, completion: @escaping () -> Void) {
+    private func offerPublishSDP(restartICE: Bool = false, completion: @escaping (OutgoingOfferSDPResult) -> Void) {
         let mandatoryConstraints = [
             kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueFalse,
             kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueFalse,
@@ -181,7 +187,7 @@ public class RTCBandwidth: NSObject {
                         let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
                         
                         self.publishingPeerConnection?.setRemoteDescription(sdp) { error in
-                            completion()
+                            completion(result)
                         }
                     }
                 case .failure(let error):
