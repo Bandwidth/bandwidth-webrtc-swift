@@ -99,19 +99,6 @@ public class RTCBandwidth: NSObject {
 
     public func publish(alias: String?, completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
         setupPublishingPeerConnection {
-            
-            if let publishingPeerConnection = self.publishingPeerConnection {
-                if let heartbeatDataChannel = self.addHeartbeatDataChannel(peerConnection: publishingPeerConnection) {
-                    self.publishedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
-                    self.publishHeartbeatDataChannel = heartbeatDataChannel
-                }
-                
-                if let diagnosticsDataChannel = self.addDiagnosticsDataChannel(peerConnection: publishingPeerConnection) {
-                    self.publishedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
-                    self.publishDiagnosticsDataChannel = diagnosticsDataChannel
-                }
-            }
-                
             let streamId = UUID().uuidString
             
             let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
@@ -173,6 +160,18 @@ public class RTCBandwidth: NSObject {
                 }
             })
         )
+        
+        if let publishingPeerConnection = publishingPeerConnection {
+            if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: publishingPeerConnection) {
+                publishedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
+                publishHeartbeatDataChannel = heartbeatDataChannel
+            }
+            
+            if let diagnosticsDataChannel = addDiagnosticsDataChannel(peerConnection: publishingPeerConnection) {
+                publishedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
+                publishDiagnosticsDataChannel = diagnosticsDataChannel
+            }
+        }
         
         offerPublishSDP { _ in
             
