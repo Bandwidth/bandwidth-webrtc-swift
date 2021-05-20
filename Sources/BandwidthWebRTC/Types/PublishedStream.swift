@@ -9,6 +9,7 @@ import Foundation
 import WebRTC
 
 struct PublishedStream {
-    let mediaStream: RTCMediaStream
+//    let mediaStream: RTCMediaStream
+    let id: String
     let metadata: StreamPublishMetadata
 }
