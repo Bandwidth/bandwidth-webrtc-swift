@@ -114,8 +114,12 @@ public class RTCBandwidth: NSObject {
             
 //            let transceiverInit = RTCRtpTransceiverInit()
             
-            self.publishingPeerConnection?.addTransceiver(with: audioTrack)
-            self.publishingPeerConnection?.addTransceiver(with: videoTrack)
+            self.publishingPeerConnection?.add(audioTrack, streamIds: ["testmediastreamid"])
+            self.publishingPeerConnection?.add(videoTrack, streamIds: ["testmediastreamid"])
+            
+//            self.publishingPeerConnection?.addTransceiver(with: audioTrack)
+//            self.publishingPeerConnection?.addTransceiver(with: videoTrack)
+            
             
             let publishMetadata = StreamPublishMetadata(alias: "usermedia")
             self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
