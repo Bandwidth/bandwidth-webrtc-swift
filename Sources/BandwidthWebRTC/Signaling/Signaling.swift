@@ -11,13 +11,13 @@ import JSONRPCWebSockets
 enum SignalingMethod: String {
     case answerSDP = "answerSdp"
     case offerSDP = "offerSdp"
-    case requestToPublish
+    case sdpOffer
     case setMediaPreferences
     case leave
 }
 
 protocol SignalingDelegate {
-    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingOfferSDPParams)
+    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingSDPOfferParams)
 }
 
 class Signaling {
@@ -48,8 +48,8 @@ class Signaling {
     
     func connect(to url: URL, completion: @escaping (Result<(), Error>) -> Void) {
         do {
-            try client.subscribe(to: SignalingMethod.offerSDP.rawValue, type: IncomingOfferSDPParams.self)
-            client.on(method: SignalingMethod.offerSDP.rawValue, type: IncomingOfferSDPParams.self) { parameters in
+            try client.subscribe(to: SignalingMethod.sdpOffer.rawValue, type: IncomingSDPOfferParams.self)
+            client.on(method: SignalingMethod.sdpOffer.rawValue, type: IncomingSDPOfferParams.self) { parameters in
                 self.delegate?.signaling(self, didRecieveOfferSDP: parameters)
             }
         } catch {

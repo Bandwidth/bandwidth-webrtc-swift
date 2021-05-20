@@ -307,7 +307,7 @@ public class RTCBandwidth: NSObject {
     }
     #endif
     
-    private func handleSubscribeOfferSDP(parameters: IncomingOfferSDPParams, completion: @escaping () -> Void) {
+    private func handleSubscribeOfferSDP(parameters: IncomingSDPOfferParams, completion: @escaping () -> Void) {
         // TODO: Check sdp version
         
         subscribingStreams = parameters.streamMetadata
@@ -339,7 +339,7 @@ public class RTCBandwidth: NSObject {
 }
 
 extension RTCBandwidth: SignalingDelegate {
-    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingOfferSDPParams) {
+    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingSDPOfferParams) {
         handleSubscribeOfferSDP(parameters: parameters) {
             
         }
