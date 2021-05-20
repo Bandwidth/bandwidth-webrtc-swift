@@ -101,7 +101,7 @@ public class RTCBandwidth: NSObject {
         setupPublishingPeerConnection {
 //            let streamId = UUID().uuidString
             
-            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
+            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: "testmediastreamid")
             
             let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
             mediaStream.addAudioTrack(audioTrack)
