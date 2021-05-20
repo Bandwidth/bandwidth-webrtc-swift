@@ -42,7 +42,7 @@ public class RTCBandwidth: NSObject {
     private var publishedDataChannels: [String: RTCDataChannel] = [:]
     private var subscribeHeartbeatDataChannel: RTCDataChannel?
     private var subscribeDiagnosticsDataChannel: RTCDataChannel?
-    private var subscribeDataChannels: [String: RTCDataChannel] = [:]
+    private var subscribedDataChannels: [String: RTCDataChannel] = [:]
     
     private var publishDataChannelAdapter: DataChannelAdapter?
     
@@ -218,6 +218,18 @@ public class RTCBandwidth: NSObject {
                 }
             )
         )
+        
+        if let subscribingPeerConnection = subscribingPeerConnection {
+            if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: subscribingPeerConnection) {
+                subscribedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
+                subscribeHeartbeatDataChannel = heartbeatDataChannel
+            }
+            
+            if let diagnosticsDataChannel = addDiagnosticsDataChannel(peerConnection: subscribingPeerConnection) {
+                subscribedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
+                subscribeDiagnosticsDataChannel = diagnosticsDataChannel
+            }
+        }
     }
     
     private func offerPublishSDP(restartICE: Bool = false, completion: @escaping (OutgoingOfferSDPResult) -> Void) {
