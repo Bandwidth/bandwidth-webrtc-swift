@@ -320,7 +320,7 @@ public class RTCBandwidth: NSObject {
                 
                 // Munge, munge, munge
                 var sdpOffer = sessionDescription.sdp
-                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:actpass", with: "a=setup:passive")
+                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
                 let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sdpOffer)
                 
                 self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
