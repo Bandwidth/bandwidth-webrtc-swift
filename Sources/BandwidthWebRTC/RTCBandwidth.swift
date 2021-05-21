@@ -9,7 +9,7 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt mediaStream: RTCMediaStream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt rtpReceiver: RTCRtpReceiver, mediaStream: RTCMediaStream)
     func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt streamId: String)
 }
 
@@ -378,7 +378,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
         for mediaStream in mediaStreams {
-            delegate?.bandwidth(self, streamAvailableAt: mediaStream)
+            delegate?.bandwidth(self, streamAvailableAt: rtpReceiver, mediaStream: mediaStream)
         }
     }
 }
