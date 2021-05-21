@@ -27,6 +27,10 @@ public class RTCBandwidth: NSObject {
     private let configuration: RTCConfiguration = {
         var configuration = RTCConfiguration()
         configuration.sdpSemantics = .unifiedPlan
+        configuration.iceServers = []
+        configuration.iceTransportPolicy = .all
+        configuration.bundlePolicy = .maxBundle
+        configuration.rtcpMuxPolicy = .require
         return configuration
     }()
     
