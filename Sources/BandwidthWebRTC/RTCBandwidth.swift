@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable endpointId: String, mediaStream: RTCMediaStream)
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt mediaStream: RTCMediaStream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt streamId: String)
 }
 
 public class RTCBandwidth: NSObject {
@@ -162,21 +162,8 @@ public class RTCBandwidth: NSObject {
             return
         }
         
-        publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: PeerConnectionAdapter(
-            didChangePeerConnectionState: { peerConnection, state in
-                if state == .failed {
-                    self.offerPublishSDP(restartICE: true) { _ in
-                        
-                    }
-                }
-            },
-            didAddRTPReceiverAndMediaStreams: { peerConnection, rtpReceiver, mediaStreams in
-                for mediaStream in mediaStreams {
-                    let publishMetadata = StreamPublishMetadata(alias: "usermedia")
-                    self.publishedStreams[mediaStream.streamId] = PublishedStream(id: mediaStream.streamId, metadata: publishMetadata)
-                }
-            })
-        )
+        // TODO: Retry when failed, setup delegate.
+        publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
         
         if let publishingPeerConnection = publishingPeerConnection {
             if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: publishingPeerConnection) {
@@ -207,17 +194,7 @@ public class RTCBandwidth: NSObject {
     }
     
     private func setupSubscribingPeerConnection() {
-        subscribingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: PeerConnectionAdapter(
-                didChangePeerConnectionState: { _, _ in
-                    
-                },
-                didAddRTPReceiverAndMediaStreams: { peerConnection, rtpReceiver, mediaStreams in
-                    for mediaStream in mediaStreams {
-                        self.delegate?.bandwidth(self, streamAvailable: mediaStream.streamId, mediaStream: mediaStream)
-                    }
-                }
-            )
-        )
+        subscribingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
         
         if let subscribingPeerConnection = subscribingPeerConnection {
             if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: subscribingPeerConnection) {
@@ -346,6 +323,52 @@ public class RTCBandwidth: NSObject {
                     }
                 }
             }
+        }
+    }
+}
+
+extension RTCBandwidth: RTCPeerConnectionDelegate {
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
+        
+    }
+    
+    @available(*, deprecated)
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
+        
+    }
+    
+    @available(*, deprecated)
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
+        
+    }
+    
+    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
+        for mediaStream in mediaStreams {
+            delegate?.bandwidth(self, streamAvailableAt: mediaStream)
         }
     }
 }
