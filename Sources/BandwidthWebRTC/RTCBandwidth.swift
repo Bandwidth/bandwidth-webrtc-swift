@@ -306,8 +306,11 @@ public class RTCBandwidth: NSObject {
         }
         
         // Munge, munge, munge
+        var sdpOffer = parameters.sdpOffer
+        // Hacky replace to munge the data.
+        sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
         
-        let sessionDescription = RTCSessionDescription(type: .offer, sdp: parameters.sdpOffer)
+        let sessionDescription = RTCSessionDescription(type: .offer, sdp: sdpOffer)
         subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
             self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
                 guard let sessionDescription = sessionDescription else {
@@ -316,9 +319,12 @@ public class RTCBandwidth: NSObject {
                 }
                 
                 // Munge, munge, munge
+                var sdpOffer = sessionDescription.sdp
+                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:actpass", with: "a=setup:passive")
+                let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sdpOffer)
                 
-                self.subscribingPeerConnection?.setLocalDescription(sessionDescription) { error in
-                    self.signaling?.answer(sdp: sessionDescription.sdp) { _ in
+                self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
+                    self.signaling?.answer(sdp: localSessionDescription.sdp) { _ in
                         completion()
                     }
                 }
