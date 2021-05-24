@@ -307,8 +307,9 @@ public class RTCBandwidth: NSObject {
             setupSubscribingPeerConnection()
         }
         
-        let sessionDescription = RTCSessionDescription(type: .offer, sdp: parameters.sdpOffer)
-        subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
+        let mungedSDP = parameters.sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
+        let mungedSessionDescription = RTCSessionDescription(type: .offer, sdp: mungedSDP)
+        subscribingPeerConnection?.setRemoteDescription(mungedSessionDescription) { error in
             if let error = error {
                 debugPrint(error.localizedDescription)
             } else {
@@ -320,13 +321,11 @@ public class RTCBandwidth: NSObject {
                             return
                         }
                         
-                        let mungedSDP = sessionDescription.sdp.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
-                        let mungedSessionDescription = RTCSessionDescription(type: sessionDescription.type, sdp: mungedSDP)
-                        self.subscribingPeerConnection?.setLocalDescription(mungedSessionDescription) { error in
+                        self.subscribingPeerConnection?.setLocalDescription(sessionDescription) { error in
                             if let error = error {
                                 debugPrint(error.localizedDescription)
                             } else {
-                                self.signaling?.answer(sdp: mungedSessionDescription.sdp) { _ in
+                                self.signaling?.answer(sdp: sessionDescription.sdp) { _ in
                                     completion()
                                 }
                             }
