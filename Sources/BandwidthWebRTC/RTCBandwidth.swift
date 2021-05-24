@@ -316,7 +316,17 @@ public class RTCBandwidth: NSObject {
         
         let sessionDescription = RTCSessionDescription(type: .offer, sdp: sdpOffer)
         subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
+            if let error = error {
+                debugPrint(error.localizedDescription)
+                return
+            }
+            
             self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
+                if let error = error {
+                    debugPrint(error.localizedDescription)
+                    return
+                }
+                
                 guard let sessionDescription = sessionDescription else {
                     // Improve error handling here.
                     return
@@ -328,6 +338,11 @@ public class RTCBandwidth: NSObject {
                 let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sdpOffer)
                 
                 self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
+                    if let error = error {
+                        debugPrint(error.localizedDescription)
+                        return
+                    }
+                    
                     self.signaling?.answer(sdp: localSessionDescription.sdp) { _ in
                         completion()
                     }
