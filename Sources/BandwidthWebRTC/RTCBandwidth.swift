@@ -301,54 +301,89 @@ public class RTCBandwidth: NSObject {
     #endif
     
     private func handleSubscribeOfferSDP(parameters: IncomingSDPOfferParams, completion: @escaping () -> Void) {
-        // TODO: Check sdp version
-        
         subscribingStreams = parameters.streamMetadata
         
         if subscribingPeerConnection == nil {
             setupSubscribingPeerConnection()
         }
         
-        // Munge, munge, munge
-//        var sdpOffer = parameters.sdpOffer
-        // Hacky replace to munge the data.
-//        sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
-        
         let sessionDescription = RTCSessionDescription(type: .offer, sdp: parameters.sdpOffer)
         subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
             if let error = error {
                 debugPrint(error.localizedDescription)
-                return
-            }
-            
-            self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
-                if let error = error {
-                    debugPrint(error.localizedDescription)
-                    return
-                }
-                
-                guard let sessionDescription = sessionDescription else {
-                    // Improve error handling here.
-                    return
-                }
-                
-                // Munge, munge, munge
-//                var sdpOffer = sessionDescription.sdp
-//                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
-                let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sessionDescription.sdp)
-                self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
+            } else {
+                self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
                     if let error = error {
                         debugPrint(error.localizedDescription)
-                        return
-                    }
-                    
-                    self.signaling?.answer(sdp: localSessionDescription.sdp) { _ in
-                        completion()
+                    } else {
+                        guard let sessionDescription = sessionDescription else {
+                            return
+                        }
+                        
+                        self.subscribingPeerConnection?.setLocalDescription(sessionDescription) { error in
+                            if let error = error {
+                                debugPrint(error.localizedDescription)
+                            } else {
+                                self.signaling?.answer(sdp: sessionDescription.sdp) { _ in
+                                    completion()
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
+    
+//    private func handleSubscribeOfferSDP(parameters: IncomingSDPOfferParams, completion: @escaping () -> Void) {
+//        // TODO: Check sdp version
+//
+//        subscribingStreams = parameters.streamMetadata
+//
+//        if subscribingPeerConnection == nil {
+//            setupSubscribingPeerConnection()
+//        }
+//
+//        // Munge, munge, munge
+////        var sdpOffer = parameters.sdpOffer
+//        // Hacky replace to munge the data.
+////        sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
+//
+//        let sessionDescription = RTCSessionDescription(type: .offer, sdp: parameters.sdpOffer)
+//        subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
+//            if let error = error {
+//                debugPrint(error.localizedDescription)
+//                return
+//            }
+//
+//            self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
+//                if let error = error {
+//                    debugPrint(error.localizedDescription)
+//                    return
+//                }
+//
+//                guard let sessionDescription = sessionDescription else {
+//                    // Improve error handling here.
+//                    return
+//                }
+//
+//                // Munge, munge, munge
+////                var sdpOffer = sessionDescription.sdp
+////                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
+//                let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sessionDescription.sdp)
+//                self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
+//                    if let error = error {
+//                        debugPrint(error.localizedDescription)
+//                        return
+//                    }
+//
+//                    self.signaling?.answer(sdp: localSessionDescription.sdp) { _ in
+//                        completion()
+//                    }
+//                }
+//            }
+//        }
+//    }
 }
 
 extension RTCBandwidth: RTCPeerConnectionDelegate {
