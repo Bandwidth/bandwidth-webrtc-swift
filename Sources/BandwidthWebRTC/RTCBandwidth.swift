@@ -425,6 +425,18 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             delegate?.bandwidth(self, streamAvailable: mediaStream)
         }
     }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
+        guard publishingPeerConnection == peerConnection else {
+            return
+        }
+        
+        if newState == .failed {
+            offerPublishSDP(restartICE: true) { _ in
+                
+            }
+        }
+    }
 }
 
 extension RTCBandwidth: RTCDataChannelDelegate {
