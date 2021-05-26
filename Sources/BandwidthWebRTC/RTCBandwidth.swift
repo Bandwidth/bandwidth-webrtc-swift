@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt rtpReceiver: RTCRtpReceiver, mediaStream: RTCMediaStream)
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt streamId: String)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable mediaStream: RTCMediaStream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable streamId: String)
 }
 
 public class RTCBandwidth: NSObject {
@@ -96,9 +96,14 @@ public class RTCBandwidth: NSObject {
         }
     }
     
-    /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
+    /// Disconnect from Bandwidth's WebRTC signaling server and remove all connections.
     public func disconnect() {
         signaling?.disconnect()
+        cleanupPublishedStreams(publishedStreams: publishedStreams)
+        publishingPeerConnection?.close()
+        subscribingPeerConnection?.close()
+        publishingPeerConnection = nil
+        subscribingPeerConnection = nil
     }
 
     public func publish(alias: String?, completion: @escaping (RTCMediaStream) -> Void) {
@@ -114,7 +119,7 @@ public class RTCBandwidth: NSObject {
             self.publishingPeerConnection?.add(videoTrack, streamIds: [mediaStream.streamId])
             
             let publishMetadata = StreamPublishMetadata(alias: alias)
-            self.publishedStreams[mediaStream.streamId] = PublishedStream(id: mediaStream.streamId, metadata: publishMetadata)
+            self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
             
             self.offerPublishSDP { result in
                 completion(mediaStream)
@@ -242,11 +247,40 @@ public class RTCBandwidth: NSObject {
         })
     }
     
-    /// Stops the signaling server from publishing `endpointId` and close the associated `RTCPeerConnection`.
+    /// Stops the signaling server from publishing `streamId` and removes associated tracks.
     ///
-    /// - Parameter endpointId: The endpoint id for the local connection.
-    public func unpublish(endpointId: String) {
+    /// - Parameter streamId: The stream ids for the published streams.
+    public func unpublish(streamIds: [String], completion: @escaping () -> Void) {
+        let publishedStreams = publishedStreams.filter { streamIds.contains($0.key) }
+        cleanupPublishedStreams(publishedStreams: publishedStreams)
         
+        offerPublishSDP { _ in
+            completion()
+        }
+    }
+    
+    private func cleanupPublishedStreams(publishedStreams: [String: PublishedStream]) {
+        for publishedStream in publishedStreams {
+            let transceivers = publishingPeerConnection?.transceivers ?? []
+            for transceiver in transceivers {
+                let mediaStream = publishedStream.value.mediaStream
+                
+                for audioTrack in mediaStream.audioTracks {
+                    if transceiver.sender.track == audioTrack {
+                        publishingPeerConnection?.removeTrack(transceiver.sender)
+                        transceiver.stopInternal()
+                    }
+                }
+                
+                for videoTrack in mediaStream.videoTracks {
+                    if transceiver.sender.track == videoTrack {
+                        publishingPeerConnection?.removeTrack(transceiver.sender)
+                        transceiver.stopInternal()
+                    }
+                }
+            }
+            self.publishedStreams.removeValue(forKey: publishedStream.key)
+        }
     }
     
     // MARK: Media
@@ -395,7 +429,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
         for mediaStream in mediaStreams {
-            delegate?.bandwidth(self, streamAvailableAt: rtpReceiver, mediaStream: mediaStream)
+            delegate?.bandwidth(self, streamAvailable: mediaStream)
         }
     }
 }
