@@ -307,8 +307,10 @@ public class RTCBandwidth: NSObject {
             setupSubscribingPeerConnection()
         }
         
-        let mungedSDP = parameters.sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
+//        let mungedSDP = parameters.sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
+        let mungedSDP = setSDPMediaSetup(sdp: parameters.sdpOffer, considerDirection: true, withTemplate: "a=setup:actpass")
         let mungedSessionDescription = RTCSessionDescription(type: .offer, sdp: mungedSDP)
+        
         subscribingPeerConnection?.setRemoteDescription(mungedSessionDescription) { error in
             if let error = error {
                 debugPrint(error.localizedDescription)
@@ -321,7 +323,8 @@ public class RTCBandwidth: NSObject {
                             return
                         }
                         
-                        let mungedSDP = sessionDescription.sdp.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
+                        let mungedSDP = self.setSDPMediaSetup(sdp: sessionDescription.sdp, considerDirection: false, withTemplate: "a=setup:passive")
+//                        let mungedSDP = sessionDescription.sdp.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
                         let mungedSessionDescription = RTCSessionDescription(type: sessionDescription.type, sdp: mungedSDP)
                         
                         self.subscribingPeerConnection?.setLocalDescription(mungedSessionDescription) { error in
@@ -339,55 +342,30 @@ public class RTCBandwidth: NSObject {
         }
     }
     
-//    private func handleSubscribeOfferSDP(parameters: IncomingSDPOfferParams, completion: @escaping () -> Void) {
-//        // TODO: Check sdp version
-//
-//        subscribingStreams = parameters.streamMetadata
-//
-//        if subscribingPeerConnection == nil {
-//            setupSubscribingPeerConnection()
-//        }
-//
-//        // Munge, munge, munge
-////        var sdpOffer = parameters.sdpOffer
-//        // Hacky replace to munge the data.
-////        sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
-//
-//        let sessionDescription = RTCSessionDescription(type: .offer, sdp: parameters.sdpOffer)
-//        subscribingPeerConnection?.setRemoteDescription(sessionDescription) { error in
-//            if let error = error {
-//                debugPrint(error.localizedDescription)
-//                return
-//            }
-//
-//            self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
-//                if let error = error {
-//                    debugPrint(error.localizedDescription)
-//                    return
-//                }
-//
-//                guard let sessionDescription = sessionDescription else {
-//                    // Improve error handling here.
-//                    return
-//                }
-//
-//                // Munge, munge, munge
-////                var sdpOffer = sessionDescription.sdp
-////                sdpOffer = sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
-//                let localSessionDescription = RTCSessionDescription(type: .offer, sdp: sessionDescription.sdp)
-//                self.subscribingPeerConnection?.setLocalDescription(localSessionDescription) { error in
-//                    if let error = error {
-//                        debugPrint(error.localizedDescription)
-//                        return
-//                    }
-//
-//                    self.signaling?.answer(sdp: localSessionDescription.sdp) { _ in
-//                        completion()
-//                    }
-//                }
-//            }
-//        }
-//    }
+    private func setSDPMediaSetup(sdp: String, considerDirection: Bool, withTemplate template: String) -> String {
+        var mungedSDP = sdp
+        
+        // Match all media descriptions within the sdp.
+        let mediaMatches = sdp.matches(pattern: "m=.*?(?=m=|$)", options: .dotMatchesLineSeparators)
+        
+        // Iterate the media descriptions in reverse as we'll potentially be modifying them.
+        for mediaMatch in mediaMatches.reversed() {
+            guard let mediaRange = Range(mediaMatch.range, in: sdp) else {
+                continue
+            }
+            
+            let media = sdp[mediaRange]
+            
+            // Either do not consider the direction or only act on media descriptions without a direction.
+            if !considerDirection || !String(media).isMatch(pattern: "a=(?:sendrecv|recvonly|sendonly|inactive)") {
+                if let replaceRegex = try? NSRegularExpression(pattern: "a=setup:(?:active)", options: .caseInsensitive) {
+                    mungedSDP = replaceRegex.stringByReplacingMatches(in: mungedSDP, options: [], range: mediaMatch.range, withTemplate: template)
+                }
+            }
+        }
+        
+        return mungedSDP
+    }
 }
 
 extension RTCBandwidth: RTCPeerConnectionDelegate {
