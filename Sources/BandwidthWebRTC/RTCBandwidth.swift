@@ -101,35 +101,33 @@ public class RTCBandwidth: NSObject {
         signaling?.disconnect()
     }
 
-    public func publish(alias: String?, completion: @escaping (RTCRtpSender?, RTCRtpSender?) -> Void) {
+    public func publish(alias: String?, completion: @escaping (RTCMediaStream) -> Void) {
         setupPublishingPeerConnection {
             let streamId = UUID().uuidString
             
-//            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: "testmediastreamid")
+            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: "testmediastreamid")
             
             let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-//            mediaStream.addAudioTrack(audioTrack)
-            
-//            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
+            mediaStream.addAudioTrack(audioTrack)
+            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
             
             let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-//            mediaStream.addVideoTrack(videoTrack)
-//            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+            mediaStream.addVideoTrack(videoTrack)
+            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
             
 //            let transceiverInit = RTCRtpTransceiverInit()
             
-            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
-            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
+//            let audioSender = self.publishingPeerConnection?.add(audioTrack, streamIds: [streamId])
+//            let videoSender = self.publishingPeerConnection?.add(videoTrack, streamIds: [streamId])
             
 //            self.publishingPeerConnection?.addTransceiver(with: audioTrack)
 //            self.publishingPeerConnection?.addTransceiver(with: videoTrack)
-            
             
             let publishMetadata = StreamPublishMetadata(alias: "usermedia")
             self.publishedStreams[streamId] = PublishedStream(id: streamId, metadata: publishMetadata)
             
             self.offerPublishSDP { result in
-                completion(audioSender, videoSender)
+                completion(mediaStream)
             }
         }
     }
@@ -307,7 +305,6 @@ public class RTCBandwidth: NSObject {
             setupSubscribingPeerConnection()
         }
         
-//        let mungedSDP = parameters.sdpOffer.replacingOccurrences(of: "a=setup:active", with: "a=setup:actpass")
         let mungedSDP = setSDPMediaSetup(sdp: parameters.sdpOffer, considerDirection: true, withTemplate: "a=setup:actpass")
         let mungedSessionDescription = RTCSessionDescription(type: .offer, sdp: mungedSDP)
         
@@ -324,7 +321,6 @@ public class RTCBandwidth: NSObject {
                         }
                         
                         let mungedSDP = self.setSDPMediaSetup(sdp: sessionDescription.sdp, considerDirection: false, withTemplate: "a=setup:passive")
-//                        let mungedSDP = sessionDescription.sdp.replacingOccurrences(of: "a=setup:active", with: "a=setup:passive")
                         let mungedSessionDescription = RTCSessionDescription(type: sessionDescription.type, sdp: mungedSDP)
                         
                         self.subscribingPeerConnection?.setLocalDescription(mungedSessionDescription) { error in
