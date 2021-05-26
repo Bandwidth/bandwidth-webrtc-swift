@@ -48,8 +48,6 @@ public class RTCBandwidth: NSObject {
     private var subscribeDiagnosticsDataChannel: RTCDataChannel?
     private var subscribedDataChannels: [String: RTCDataChannel] = [:]
     
-    private var publishDataChannelAdapter: DataChannelAdapter?
-    
     // Published (outgoing) streams keyed by media stream id (msid).
     private var publishedStreams: [String: PublishedStream] = [:]
     // Subscribed (incoming) streams keyed by media stream id (msid).
@@ -143,12 +141,7 @@ public class RTCBandwidth: NSObject {
         configuration.protocol = "udp"
         
         let dataChannel = peerConnection.dataChannel(forLabel: "__diagnostics__", configuration: configuration)
-        publishDataChannelAdapter = DataChannelAdapter(
-            didReceiveMessageWithBuffer: { _, buffer in
-                debugPrint("Diagnostics Received: \(String(data: buffer.data, encoding: .utf8) ?? "")")
-            }
-        )
-        dataChannel?.delegate = publishDataChannelAdapter
+        dataChannel?.delegate = self
         
         return dataChannel
     }
@@ -431,6 +424,16 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         for mediaStream in mediaStreams {
             delegate?.bandwidth(self, streamAvailable: mediaStream)
         }
+    }
+}
+
+extension RTCBandwidth: RTCDataChannelDelegate {
+    public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
+        
+    }
+    
+    public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
+        debugPrint("Diagnostics Received: \(String(data: buffer.data, encoding: .utf8) ?? "")")
     }
 }
 
