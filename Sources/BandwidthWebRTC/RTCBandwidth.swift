@@ -436,15 +436,12 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             return
         }
         
-        let differences = Array(mediaStreams).difference(from: availableMediaStreams)
-        for difference in differences {
-            switch difference {
-            case let .insert(_, mediaStream, _):
+        for mediaStream in mediaStreams {
+            // Append unique media streams to the available media streams. This is used to prevent duplicate stream available events.
+            if availableMediaStreams.contains(where: { $0.streamId != mediaStream.streamId }) {
                 availableMediaStreams.append(mediaStream)
                 
                 delegate?.bandwidth(self, streamAvailable: mediaStream)
-            default:
-                continue
             }
         }
     }
