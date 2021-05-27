@@ -197,7 +197,7 @@ public class RTCBandwidth: NSObject {
         }
     }
     
-    private func offerPublishSDP(restartICE: Bool = false, completion: @escaping (OutgoingOfferSDPResult) -> Void) {
+    private func offerPublishSDP(restartICE: Bool = false, completion: @escaping (OfferSDPResult) -> Void) {
         let mandatoryConstraints = [
             kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueFalse,
             kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueFalse,
@@ -323,7 +323,7 @@ public class RTCBandwidth: NSObject {
     }
     #endif
     
-    private func handleSubscribeOfferSDP(parameters: IncomingSDPOfferParams, completion: @escaping () -> Void) {
+    private func handleSubscribeOfferSDP(parameters: SDPOfferParams, completion: @escaping () -> Void) {
         subscribingStreams = parameters.streamMetadata
         
         if subscribingPeerConnection == nil {
@@ -458,7 +458,7 @@ extension RTCBandwidth: RTCDataChannelDelegate {
 }
 
 extension RTCBandwidth: SignalingDelegate {
-    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingSDPOfferParams) {
+    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: SDPOfferParams) {
         handleSubscribeOfferSDP(parameters: parameters) {
             
         }

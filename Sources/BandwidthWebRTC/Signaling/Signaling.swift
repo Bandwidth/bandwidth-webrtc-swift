@@ -17,7 +17,7 @@ enum SignalingMethod: String {
 }
 
 protocol SignalingDelegate {
-    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: IncomingSDPOfferParams)
+    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: SDPOfferParams)
 }
 
 class Signaling {
@@ -48,8 +48,8 @@ class Signaling {
     
     func connect(to url: URL, completion: @escaping (Result<(), Error>) -> Void) {
         do {
-            try client.subscribe(to: SignalingMethod.sdpOffer.rawValue, type: IncomingSDPOfferParams.self)
-            client.on(method: SignalingMethod.sdpOffer.rawValue, type: IncomingSDPOfferParams.self) { parameters in
+            try client.subscribe(to: SignalingMethod.sdpOffer.rawValue, type: SDPOfferParams.self)
+            client.on(method: SignalingMethod.sdpOffer.rawValue, type: SDPOfferParams.self) { parameters in
                 self.delegate?.signaling(self, didRecieveOfferSDP: parameters)
             }
         } catch {
@@ -85,20 +85,20 @@ class Signaling {
         }
     }
     
-    func offer(sdp: String, publishMetadata: PublishMetadata, completion: @escaping (Result<OutgoingOfferSDPResult?, Error>) -> Void) {
+    func offer(sdp: String, publishMetadata: PublishMetadata, completion: @escaping (Result<OfferSDPResult?, Error>) -> Void) {
         let method = SignalingMethod.offerSDP.rawValue
-        let parameters = OutgoingOfferSDPParams(sdpOffer: sdp, mediaMetadata: publishMetadata)
+        let parameters = OfferSDPParams(sdpOffer: sdp, mediaMetadata: publishMetadata)
         
-        client.call(method: method, parameters: parameters, type: OutgoingOfferSDPResult.self) { result in
+        client.call(method: method, parameters: parameters, type: OfferSDPResult.self) { result in
             completion(result)
         }
     }
     
-    func answer(sdp: String, completion: @escaping (Result<OutgoingAnswerSDPResult?, Error>) -> Void) {
+    func answer(sdp: String, completion: @escaping (Result<AnswerSDPResult?, Error>) -> Void) {
         let method = SignalingMethod.answerSDP.rawValue
-        let parameters = OutgoingAnswerSDPParams(sdpAnswer: sdp)
+        let parameters = AnswerSDPParams(sdpAnswer: sdp)
         
-        client.call(method: method, parameters: parameters, type: OutgoingAnswerSDPResult.self) { result in
+        client.call(method: method, parameters: parameters, type: AnswerSDPResult.self) { result in
             completion(result)
         }
     }
