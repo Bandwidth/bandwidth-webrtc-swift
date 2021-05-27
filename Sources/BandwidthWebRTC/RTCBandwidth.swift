@@ -108,6 +108,12 @@ public class RTCBandwidth: NSObject {
         setupPublishingPeerConnection {
             let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
             
+            let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+            mediaStream.addAudioTrack(audioTrack)
+            
+            let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+            mediaStream.addVideoTrack(videoTrack)
+            
             self.addStreamToPublishingPeerConnection(mediaStream: mediaStream)
             
             let publishMetadata = StreamPublishMetadata(alias: alias)
@@ -245,21 +251,13 @@ public class RTCBandwidth: NSObject {
     }
     
     private func addStreamToPublishingPeerConnection(mediaStream: RTCMediaStream) {
-//        for track in mediaStream.audioTracks + mediaStream.videoTracks {
-//            let transceiverInit = RTCRtpTransceiverInit()
-//            transceiverInit.direction = .sendOnly
-//            transceiverInit.streamIds = [mediaStream.streamId]
-//
-//            let transceiver = publishingPeerConnection?.addTransceiver(with: track, init: transceiverInit)
-//        }
-        
-        let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-        mediaStream.addAudioTrack(audioTrack)
-        publishingPeerConnection?.add(audioTrack, streamIds: [mediaStream.streamId])
-        
-        let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-        mediaStream.addVideoTrack(videoTrack)
-        publishingPeerConnection?.add(videoTrack, streamIds: [mediaStream.streamId])
+        for track in mediaStream.audioTracks + mediaStream.videoTracks {
+            let transceiverInit = RTCRtpTransceiverInit()
+            transceiverInit.direction = .sendOnly
+            transceiverInit.streamIds = [mediaStream.streamId]
+
+            publishingPeerConnection?.addTransceiver(with: track, init: transceiverInit)
+        }
     }
     
     private func cleanupPublishedStreams(publishedStreams: [String: PublishedStream]) {
