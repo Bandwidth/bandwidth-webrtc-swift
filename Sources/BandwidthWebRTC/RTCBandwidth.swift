@@ -438,7 +438,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         
         for mediaStream in mediaStreams {
             // Append unique media streams to the available media streams. This is used to prevent duplicate stream available events.
-            if availableMediaStreams.contains(where: { $0.streamId != mediaStream.streamId }) {
+            if !availableMediaStreams.contains(where: { $0.streamId == mediaStream.streamId }) {
                 availableMediaStreams.append(mediaStream)
                 
                 delegate?.bandwidth(self, streamAvailable: mediaStream)
