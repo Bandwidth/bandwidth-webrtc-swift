@@ -108,13 +108,7 @@ public class RTCBandwidth: NSObject {
         setupPublishingPeerConnection {
             let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
             
-            let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-            mediaStream.addAudioTrack(audioTrack)
-            self.publishingPeerConnection?.add(audioTrack, streamIds: [mediaStream.streamId])
-            
-            let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-            mediaStream.addVideoTrack(videoTrack)
-            self.publishingPeerConnection?.add(videoTrack, streamIds: [mediaStream.streamId])
+            self.addStreamToPublishingPeerConnection(mediaStream: mediaStream)
             
             let publishMetadata = StreamPublishMetadata(alias: alias)
             self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
@@ -152,7 +146,6 @@ public class RTCBandwidth: NSObject {
             return
         }
         
-        // TODO: Retry when failed, setup delegate.
         publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
         
         if let publishingPeerConnection = publishingPeerConnection {
@@ -170,9 +163,8 @@ public class RTCBandwidth: NSObject {
         offerPublishSDP { _ in
             
             // (Re)publish any existing media streams.
-            if !self.publishedStreams.isEmpty {
-                // TODO: self.publishedStreams.forEach...
-                // TODO: addStreamToPublishingPeerConnection(self.publishedStream.mediaStream)
+            for publishedStream in self.publishedStreams {
+                self.addStreamToPublishingPeerConnection(mediaStream: publishedStream.value.mediaStream)
                 
                 self.offerPublishSDP { _ in
                     completion()
@@ -250,6 +242,24 @@ public class RTCBandwidth: NSObject {
         offerPublishSDP { _ in
             completion()
         }
+    }
+    
+    private func addStreamToPublishingPeerConnection(mediaStream: RTCMediaStream) {
+//        for track in mediaStream.audioTracks + mediaStream.videoTracks {
+//            let transceiverInit = RTCRtpTransceiverInit()
+//            transceiverInit.direction = .sendOnly
+//            transceiverInit.streamIds = [mediaStream.streamId]
+//
+//            let transceiver = publishingPeerConnection?.addTransceiver(with: track, init: transceiverInit)
+//        }
+        
+        let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+        mediaStream.addAudioTrack(audioTrack)
+        publishingPeerConnection?.add(audioTrack, streamIds: [mediaStream.streamId])
+        
+        let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+        mediaStream.addVideoTrack(videoTrack)
+        publishingPeerConnection?.add(videoTrack, streamIds: [mediaStream.streamId])
     }
     
     private func cleanupPublishedStreams(publishedStreams: [String: PublishedStream]) {
