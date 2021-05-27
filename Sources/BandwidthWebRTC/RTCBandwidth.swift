@@ -436,7 +436,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             return
         }
         
-        let differences = availableMediaStreams.difference(from: mediaStreams)
+        let differences = availableMediaStreams.difference(from: Array(mediaStreams))
         for difference in differences {
             switch difference {
             case let .insert(_, mediaStream, _):
