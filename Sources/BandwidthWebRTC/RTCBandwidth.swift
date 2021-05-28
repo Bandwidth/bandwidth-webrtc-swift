@@ -54,7 +54,7 @@ public class RTCBandwidth: NSObject {
     private var subscribingStreams: [String: StreamMetadata] = [:]
     
     // Keep track of our available streams. Prevents duplicate stream available / unavailable events.
-    private var availableMediaStreams: [RTCMediaStream] = []
+    private var availableMediaStreams: [String: RTCMediaStream] = [:]
     
     #if os(iOS)
     private let audioSession =  RTCAudioSession.sharedInstance()
@@ -437,10 +437,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         }
         
         for mediaStream in mediaStreams {
-            // Append unique media streams to the available media streams. This is used to prevent duplicate stream available events.
-            if !availableMediaStreams.contains(where: { $0.streamId == mediaStream.streamId }) {
-                availableMediaStreams.append(mediaStream)
-                
+            if availableMediaStreams.updateValue(mediaStream, forKey: mediaStream.streamId) == nil {
                 delegate?.bandwidth(self, streamAvailable: mediaStream)
             }
         }
@@ -451,6 +448,19 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             return
         }
         
+        guard let track = rtpReceiver.track else {
+            return
+        }
+        
+        let availableMediaStream = availableMediaStreams
+            .first { $0.value.audioTracks.contains { $0.trackId == track.trackId } || $0.value.videoTracks.contains { $0.trackId == track.trackId } }
+        
+        if let availableMediaStream = availableMediaStream {
+            let streamId = availableMediaStream.key
+            
+            delegate?.bandwidth(self, streamUnavailable: streamId)
+            availableMediaStreams.removeValue(forKey: streamId)
+        }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
