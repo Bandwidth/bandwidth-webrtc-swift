@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public struct RTCStream {
-    let mediaTypes: [MediaType]
-    let mediaStream: RTCMediaStream
-    let alias: String?
-    let participantId: String?
+    public let mediaTypes: [MediaType]
+    public let mediaStream: RTCMediaStream
+    public let alias: String?
+    public let participantId: String?
 }
