@@ -107,7 +107,7 @@ public class RTCBandwidth: NSObject {
         subscribingPeerConnection = nil
     }
 
-    public func publish(alias: String?, completion: @escaping (RTCMediaStream) -> Void) {
+    public func publish(alias: String?, completion: @escaping (RTCStream) -> Void) {
         setupPublishingPeerConnection {
             let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
             
@@ -123,7 +123,12 @@ public class RTCBandwidth: NSObject {
             self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
             
             self.offerPublishSDP { result in
-                completion(mediaStream)
+                let stream = RTCStream(mediaTypes: result.streamMetadata[mediaStream.streamId]?.mediaTypes ?? [.application],
+                                       mediaStream: mediaStream,
+                                       alias: alias,
+                                       participantId: nil)
+                
+                completion(stream)
             }
         }
     }

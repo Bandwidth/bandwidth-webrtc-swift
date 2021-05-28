@@ -24,8 +24,8 @@ class WebRTCService {
 
         getToken { token in
             try? self.bandwidth.connect(using: token) {
-                self.bandwidth.publish(audio: true, video: true, alias: "Bolg") { endpointId, mediaTypes, audioRTPSender, videoRTPSender in
-                    self.localVideoTrack = videoRTPSender?.track as? RTCVideoTrack
+                self.bandwidth.publish(alias: "Bolg") { stream in
+                    self.localVideoTrack = stream.mediaStream.track as? RTCVideoTrack
                     // localRenderer should be a UIView of type RTCVideoRenderer. This is the view which displays the local video.
                     self.localVideoTrack?.add(self.localRenderer)
 
@@ -65,8 +65,8 @@ class WebRTCService {
 }
 
 extension WebRTCService: RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, participantId: String, alias: String?, mediaTypes: [MediaType], rtpReceiver) {
-        if let remoteVideoTrack = rtpReceiver.track as? RTCVideoTrack {
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable stream: RTCStream) {
+        if let remoteVideoTrack = stream.mediaStream.track as? RTCVideoTrack {
             self.remoteVideoTrack = remoteVideoTrack
             
             DispatchQueue.main.async {
@@ -76,7 +76,7 @@ extension WebRTCService: RTCBandwidthDelegate {
         }
     }
 
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String) {
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable stream: RTCStream) {
         
     }
 }
