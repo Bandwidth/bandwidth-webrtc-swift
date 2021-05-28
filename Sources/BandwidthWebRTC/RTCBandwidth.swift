@@ -250,7 +250,7 @@ public class RTCBandwidth: NSObject {
     ///
     /// - Parameter streamId: The stream ids for the published streams.
     public func unpublish(streamIds: [String], completion: @escaping () -> Void) {
-        let publishedStreams = publishedStreams.filter { streamIds.contains($0.key) }
+        let publishedStreams = self.publishedStreams.filter { streamIds.contains($0.key) }
         cleanupPublishedStreams(publishedStreams: publishedStreams)
         
         offerPublishSDP { _ in
