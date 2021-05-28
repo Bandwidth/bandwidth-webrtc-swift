@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable stream: Stream)
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable stream: Stream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable stream: RTCStream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable stream: RTCStream)
 }
 
 public class RTCBandwidth: NSObject {
@@ -440,7 +440,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             if availableMediaStreams.updateValue(mediaStream, forKey: mediaStream.streamId) == nil {
                 let subscribedStream = subscribedStreams[mediaStream.streamId]
                 
-                let stream = Stream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+                let stream = RTCStream(mediaTypes: subscribedStream?.mediaTypes ?? [],
                                     mediaStream: mediaStream,
                                     alias: subscribedStream?.alias,
                                     participantId: subscribedStream?.participantId)
@@ -467,7 +467,7 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             
             let subscribedStream = subscribedStreams[mediaStream.streamId]
             
-            let stream = Stream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+            let stream = RTCStream(mediaTypes: subscribedStream?.mediaTypes ?? [],
                                 mediaStream: mediaStream,
                                 alias: subscribedStream?.alias,
                                 participantId: subscribedStream?.participantId)
