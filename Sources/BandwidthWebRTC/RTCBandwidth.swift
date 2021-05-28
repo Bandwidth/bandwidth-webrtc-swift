@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable mediaStream: RTCMediaStream)
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable streamId: String)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable stream: Stream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable stream: Stream)
 }
 
 public class RTCBandwidth: NSObject {
@@ -51,7 +51,7 @@ public class RTCBandwidth: NSObject {
     // Published (outgoing) streams keyed by media stream id (msid).
     private var publishedStreams: [String: PublishedStream] = [:]
     // Subscribed (incoming) streams keyed by media stream id (msid).
-    private var subscribingStreams: [String: StreamMetadata] = [:]
+    private var subscribedStreams: [String: StreamMetadata] = [:]
     
     // Keep track of our available streams. Prevents duplicate stream available / unavailable events.
     private var availableMediaStreams: [String: RTCMediaStream] = [:]
@@ -327,7 +327,7 @@ public class RTCBandwidth: NSObject {
     #endif
     
     private func handleSubscribeOfferSDP(parameters: SDPOfferParams, completion: @escaping () -> Void) {
-        subscribingStreams = parameters.streamMetadata
+        subscribedStreams = parameters.streamMetadata
         
         if subscribingPeerConnection == nil {
             setupSubscribingPeerConnection()
@@ -438,7 +438,14 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
         
         for mediaStream in mediaStreams {
             if availableMediaStreams.updateValue(mediaStream, forKey: mediaStream.streamId) == nil {
-                delegate?.bandwidth(self, streamAvailable: mediaStream)
+                let subscribedStream = subscribedStreams[mediaStream.streamId]
+                
+                let stream = Stream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+                                    mediaStream: mediaStream,
+                                    alias: subscribedStream?.alias,
+                                    participantId: subscribedStream?.participantId)
+                
+                delegate?.bandwidth(self, streamAvailable: stream)
             }
         }
     }
@@ -456,10 +463,18 @@ extension RTCBandwidth: RTCPeerConnectionDelegate {
             .first { $0.value.audioTracks.contains { $0.trackId == track.trackId } || $0.value.videoTracks.contains { $0.trackId == track.trackId } }
         
         if let availableMediaStream = availableMediaStream {
-            let streamId = availableMediaStream.key
+            let mediaStream = availableMediaStream.value
             
-            delegate?.bandwidth(self, streamUnavailable: streamId)
-            availableMediaStreams.removeValue(forKey: streamId)
+            let subscribedStream = subscribedStreams[mediaStream.streamId]
+            
+            let stream = Stream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+                                mediaStream: mediaStream,
+                                alias: subscribedStream?.alias,
+                                participantId: subscribedStream?.participantId)
+            
+            delegate?.bandwidth(self, streamUnavailable: stream)
+            
+            availableMediaStreams.removeValue(forKey: mediaStream.streamId)
         }
     }
     

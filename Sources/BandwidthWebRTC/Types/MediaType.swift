@@ -10,4 +10,5 @@ import Foundation
 public enum MediaType: String, Codable {
     case audio = "AUDIO"
     case video = "VIDEO"
+    case application = "APPLICATION"
 }
