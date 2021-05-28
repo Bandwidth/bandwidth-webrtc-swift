@@ -9,8 +9,8 @@ import Foundation
 import WebRTC
 
 public protocol RTCBandwidthDelegate {
-    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailableAt endpointId: String, participantId: String, alias: String?, mediaTypes: [MediaType], rtpReceiver: RTCRtpReceiver)
-    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailableAt endpointId: String)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamAvailable stream: RTCStream)
+    func bandwidth(_ bandwidth: RTCBandwidth, streamUnavailable stream: RTCStream)
 }
 
 public class RTCBandwidth: NSObject {
@@ -27,13 +27,34 @@ public class RTCBandwidth: NSObject {
     private let configuration: RTCConfiguration = {
         var configuration = RTCConfiguration()
         configuration.sdpSemantics = .unifiedPlan
+        configuration.iceServers = []
+        configuration.iceTransportPolicy = .all
+        configuration.bundlePolicy = .maxBundle
+        configuration.rtcpMuxPolicy = .require
         return configuration
     }()
     
     private let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
     
-    private var localConnections = [Connection]()
-    private var remoteConnections = [Connection]()
+    // One peer for all published (outgoing) streams, one for all subscribed (incoming) streams.
+    private var publishingPeerConnection: RTCPeerConnection?
+    private var subscribingPeerConnection: RTCPeerConnection?
+    
+    // Standard data channels used for platform diagnostics and health checks.
+    private var publishHeartbeatDataChannel: RTCDataChannel?
+    private var publishDiagnosticsDataChannel: RTCDataChannel?
+    private var publishedDataChannels: [String: RTCDataChannel] = [:]
+    private var subscribeHeartbeatDataChannel: RTCDataChannel?
+    private var subscribeDiagnosticsDataChannel: RTCDataChannel?
+    private var subscribedDataChannels: [String: RTCDataChannel] = [:]
+    
+    // Published (outgoing) streams keyed by media stream id (msid).
+    private var publishedStreams: [String: PublishedStream] = [:]
+    // Subscribed (incoming) streams keyed by media stream id (msid).
+    private var subscribedStreams: [String: StreamMetadata] = [:]
+    
+    // Keep track of our available streams. Prevents duplicate stream available / unavailable events.
+    private var availableMediaStreams: [String: RTCMediaStream] = [:]
     
     #if os(iOS)
     private let audioSession =  RTCAudioSession.sharedInstance()
@@ -54,13 +75,12 @@ public class RTCBandwidth: NSObject {
     /// - Parameters:
     ///   - token: Token returned from Bandwidth's servers giving permission to access WebRTC.
     ///   - completion: The completion handler to call when the connect request is complete.
-    /// - Throws: Throw when a connection to the signaling server experiences an error.
-    public func connect(using token: String, completion: @escaping () -> Void) throws {
+    public func connect(using token: String, completion: @escaping (Result<(), Error>) -> Void) {
         signaling = Signaling()
         signaling?.delegate = self
         
-        try signaling?.connect(using: token) {
-            completion()
+        signaling?.connect(using: token) { result in
+            completion(result)
         }
     }
     
@@ -68,84 +88,207 @@ public class RTCBandwidth: NSObject {
     /// - Parameters:
     ///   - url: Complete URL containing everything required to access WebRTC.
     ///   - completion: The completion handler to call when the connect request is complete.
-    /// - Throws: Throw when a connection to the signaling server experiences an error.
-    public func connect(to url: URL, completion: @escaping () -> Void) throws {
+    public func connect(to url: URL, completion: @escaping (Result<(), Error>) -> Void) {
         signaling = Signaling()
         signaling?.delegate = self
         
-        try signaling?.connect(to: url) {
-            completion()
+        signaling?.connect(to: url) { result in
+            completion(result)
         }
     }
     
-    /// Disconnect from Bandwidth's WebRTC signaling server and remove all local connections.
+    /// Disconnect from Bandwidth's WebRTC signaling server and remove all connections.
     public func disconnect() {
         signaling?.disconnect()
-        localConnections.forEach { $0.peerConnection.senders.forEach { $0.track?.isEnabled = false } }
-        localConnections.removeAll()
+        cleanupPublishedStreams(publishedStreams: publishedStreams)
+        publishingPeerConnection?.close()
+        subscribingPeerConnection?.close()
+        publishingPeerConnection = nil
+        subscribingPeerConnection = nil
     }
 
-    /// Starts the signaling server publishing and calls a handler upon completion.
-    /// - Parameters:
-    ///   - audio: Request to publish audio.
-    ///   - video: Request to publish video.
-    ///   - alias: Optionally include an alias to assign to the request.
-    ///   - completion: The completion handler to call when the publish request is complete.
-    public func publish(audio: Bool, video: Bool, alias: String?, completion: @escaping (String, [MediaType], RTCRtpSender?, RTCRtpSender?) -> Void) {
-        var mediaTypes = [MediaType]()
-        
-        if audio {
-            mediaTypes.append(.audio)
-        }
-        
-        if video {
-            mediaTypes.append(.video)
-        }
-        
-        signaling?.setMediaPreferences(protocol: "WEB_RTC", aggregationType: "NONE", sendReceive: false) { result in
-            self.signaling?.requestToPublish(mediaTypes: mediaTypes, alias: alias) { result in
-                guard let result = result else {
-                    return
-                }
+    public func publish(alias: String?, completion: @escaping (RTCStream) -> Void) {
+        setupPublishingPeerConnection {
+            let mediaStream = RTCBandwidth.factory.mediaStream(withStreamId: UUID().uuidString)
+            
+            let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
+            mediaStream.addAudioTrack(audioTrack)
+            
+            let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
+            mediaStream.addVideoTrack(videoTrack)
+            
+            self.addStreamToPublishingPeerConnection(mediaStream: mediaStream)
+            
+            let publishMetadata = StreamPublishMetadata(alias: alias)
+            self.publishedStreams[mediaStream.streamId] = PublishedStream(mediaStream: mediaStream, metadata: publishMetadata)
+            
+            self.offerPublishSDP { result in
+                let stream = RTCStream(mediaTypes: result.streamMetadata[mediaStream.streamId]?.mediaTypes ?? [.application],
+                                       mediaStream: mediaStream,
+                                       alias: alias,
+                                       participantId: nil)
                 
-                let peerConnection = RTCBandwidth.factory.peerConnection(with: self.configuration, constraints: self.mediaConstraints, delegate: self)
-                
-                var audioSender: RTCRtpSender?
-                var videoSender: RTCRtpSender?
-                
-                let streamId = UUID().uuidString
-                
-                if mediaTypes.contains(.audio) {
-                    let audioTrack = RTCBandwidth.factory.audioTrack(with: RTCBandwidth.factory.audioSource(with: nil), trackId: UUID().uuidString)
-                    audioSender = peerConnection.add(audioTrack, streamIds: [streamId])
-                }
-                
-                if mediaTypes.contains(.video) {
-                    let videoTrack = RTCBandwidth.factory.videoTrack(with: RTCBandwidth.factory.videoSource(), trackId: UUID().uuidString)
-                    videoSender = peerConnection.add(videoTrack, streamIds: [streamId])
-                }
-
-                let localConnection = Connection(peerConnection: peerConnection, endpointId: result.endpointId, participantId: result.participantId, mediaTypes: mediaTypes, alias: alias)
-                self.localConnections.append(localConnection)
-                
-                self.negotiateSDP(endpointId: result.endpointId, direction: result.direction, mediaTypes: result.mediaTypes, for: peerConnection) {
-                    completion(result.endpointId, result.mediaTypes, audioSender, videoSender)
-                }
+                completion(stream)
             }
         }
     }
     
-    /// Stops the signaling server from publishing `endpointId` and close the associated `RTCPeerConnection`.
-    ///
-    /// - Parameter endpointId: The endpoint id for the local connection.
-    public func unpublish(endpointId: String) {
-        signaling?.unpublish(endpointId: endpointId) { result in
-
+    private func addHeartbeatDataChannel(peerConnection: RTCPeerConnection) -> RTCDataChannel? {
+        let configuration = RTCDataChannelConfiguration()
+        configuration.channelId = 0
+        configuration.isNegotiated = true
+        configuration.protocol = "udp"
+        
+        return peerConnection.dataChannel(forLabel: "__heartbeat__", configuration: configuration)
+    }
+    
+    private func addDiagnosticsDataChannel(peerConnection: RTCPeerConnection) -> RTCDataChannel? {
+        let configuration = RTCDataChannelConfiguration()
+        configuration.channelId = 1
+        configuration.isNegotiated = true
+        configuration.protocol = "udp"
+        
+        let dataChannel = peerConnection.dataChannel(forLabel: "__diagnostics__", configuration: configuration)
+        dataChannel?.delegate = self
+        
+        return dataChannel
+    }
+    
+    private func setupPublishingPeerConnection(completion: @escaping () -> Void) {
+        guard publishingPeerConnection == nil else {
+            completion()
+            return
         }
         
-        if let index = localConnections.firstIndex(where: { $0.endpointId == endpointId }) {
-            localConnections[index].peerConnection.close()
-            localConnections.remove(at: index)
+        publishingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
+        
+        if let publishingPeerConnection = publishingPeerConnection {
+            if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: publishingPeerConnection) {
+                publishedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
+                publishHeartbeatDataChannel = heartbeatDataChannel
+            }
+            
+            if let diagnosticsDataChannel = addDiagnosticsDataChannel(peerConnection: publishingPeerConnection) {
+                publishedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
+                publishDiagnosticsDataChannel = diagnosticsDataChannel
+            }
+        }
+        
+        offerPublishSDP { _ in
+            
+            // (Re)publish any existing media streams.
+            for publishedStream in self.publishedStreams {
+                self.addStreamToPublishingPeerConnection(mediaStream: publishedStream.value.mediaStream)
+                
+                self.offerPublishSDP { _ in
+                    completion()
+                }
+            }
+            
+            completion()
+        }
+    }
+    
+    private func setupSubscribingPeerConnection() {
+        subscribingPeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
+        
+        if let subscribingPeerConnection = subscribingPeerConnection {
+            if let heartbeatDataChannel = addHeartbeatDataChannel(peerConnection: subscribingPeerConnection) {
+                subscribedDataChannels[heartbeatDataChannel.label] = heartbeatDataChannel
+                subscribeHeartbeatDataChannel = heartbeatDataChannel
+            }
+            
+            if let diagnosticsDataChannel = addDiagnosticsDataChannel(peerConnection: subscribingPeerConnection) {
+                subscribedDataChannels[diagnosticsDataChannel.label] = diagnosticsDataChannel
+                subscribeDiagnosticsDataChannel = diagnosticsDataChannel
+            }
+        }
+    }
+    
+    private func offerPublishSDP(restartICE: Bool = false, completion: @escaping (OfferSDPResult) -> Void) {
+        let mandatoryConstraints = [
+            kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueFalse,
+            kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueFalse,
+            kRTCMediaConstraintsVoiceActivityDetection: kRTCMediaConstraintsValueTrue,
+            kRTCMediaConstraintsIceRestart: restartICE ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
+        ]
+        
+        let mediaConstraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
+        
+        publishingPeerConnection?.offer(for: mediaConstraints, completionHandler: { localSDPOffer, error in
+            guard let localSDPOffer = localSDPOffer else {
+                return
+            }
+            
+            let mediaStreams = self.publishedStreams.mapValues { $0.metadata }
+            let dataChannels = self.publishedDataChannels.mapValues { DataChannelPublishMetadata(label: $0.label, streamId: $0.channelId) }
+            let publishMetadata = PublishMetadata(mediaStreams: mediaStreams, dataChannels: dataChannels)
+            
+            self.signaling?.offer(sdp: localSDPOffer.sdp, publishMetadata: publishMetadata) { result in
+                
+                switch result {
+                case .success(let result):
+                    self.publishingPeerConnection?.setLocalDescription(localSDPOffer) { error in
+                        guard let result = result else {
+                            return
+                        }
+                        
+                        let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
+                        
+                        self.publishingPeerConnection?.setRemoteDescription(sdp) { error in
+                            completion(result)
+                        }
+                    }
+                case .failure(let error):
+                    print(error.localizedDescription)
+                }
+            }
+        })
+    }
+    
+    /// Stops the signaling server from publishing `streamId` and removes associated tracks.
+    ///
+    /// - Parameter streamId: The stream ids for the published streams.
+    public func unpublish(streamIds: [String], completion: @escaping () -> Void) {
+        let publishedStreams = self.publishedStreams.filter { streamIds.contains($0.key) }
+        cleanupPublishedStreams(publishedStreams: publishedStreams)
+        
+        offerPublishSDP { _ in
+            completion()
+        }
+    }
+    
+    private func addStreamToPublishingPeerConnection(mediaStream: RTCMediaStream) {
+        for track in mediaStream.audioTracks + mediaStream.videoTracks {
+            let transceiverInit = RTCRtpTransceiverInit()
+            transceiverInit.direction = .sendOnly
+            transceiverInit.streamIds = [mediaStream.streamId]
+
+            publishingPeerConnection?.addTransceiver(with: track, init: transceiverInit)
+        }
+    }
+    
+    private func cleanupPublishedStreams(publishedStreams: [String: PublishedStream]) {
+        for publishedStream in publishedStreams {
+            let transceivers = publishingPeerConnection?.transceivers ?? []
+            for transceiver in transceivers {
+                let mediaStream = publishedStream.value.mediaStream
+                
+                for audioTrack in mediaStream.audioTracks {
+                    if transceiver.sender.track == audioTrack {
+                        publishingPeerConnection?.removeTrack(transceiver.sender)
+                        transceiver.stopInternal()
+                    }
+                }
+                
+                for videoTrack in mediaStream.videoTracks {
+                    if transceiver.sender.track == videoTrack {
+                        publishingPeerConnection?.removeTrack(transceiver.sender)
+                        transceiver.stopInternal()
+                    }
+                }
+            }
+            self.publishedStreams.removeValue(forKey: publishedStream.key)
         }
     }
     
@@ -188,181 +331,185 @@ public class RTCBandwidth: NSObject {
     }
     #endif
     
-    private func negotiateSDP(endpointId: String, direction: String, mediaTypes: [MediaType], for peerConnection: RTCPeerConnection, completion: @escaping () -> Void) {
-        debugPrint(direction)
+    private func handleSubscribeOfferSDP(parameters: SDPOfferParams, completion: @escaping () -> Void) {
+        subscribedStreams = parameters.streamMetadata
         
-        var mandatoryConstraints = [
-            kRTCMediaConstraintsOfferToReceiveAudio: kRTCMediaConstraintsValueFalse,
-            kRTCMediaConstraintsOfferToReceiveVideo: kRTCMediaConstraintsValueFalse
-        ]
-        
-        if direction.contains("recv") {
-            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveAudio] = mediaTypes.contains(.audio) ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
-            mandatoryConstraints[kRTCMediaConstraintsOfferToReceiveVideo] = mediaTypes.contains(.video) ? kRTCMediaConstraintsValueTrue : kRTCMediaConstraintsValueFalse
+        if subscribingPeerConnection == nil {
+            setupSubscribingPeerConnection()
         }
         
-        let constraints = RTCMediaConstraints(mandatoryConstraints: mandatoryConstraints, optionalConstraints: nil)
+        let mungedSDP = setSDPMediaSetup(sdp: parameters.sdpOffer, considerDirection: true, withTemplate: "a=setup:actpass")
+        let mungedSessionDescription = RTCSessionDescription(type: .offer, sdp: mungedSDP)
         
-        peerConnection.offer(for: constraints) { offer, error in
+        subscribingPeerConnection?.setRemoteDescription(mungedSessionDescription) { error in
             if let error = error {
-                print(error.localizedDescription)
-            }
-        
-            guard let offer = offer else {
-                return
-            }
-        
-            self.signaling?.offer(endpointId: endpointId, sdp: offer.sdp) { result in
-                guard let result = result else {
-                    return
-                }
-
-                peerConnection.setLocalDescription(offer) { error in
+                debugPrint(error.localizedDescription)
+            } else {
+                self.subscribingPeerConnection?.answer(for: self.mediaConstraints) { sessionDescription, error in
                     if let error = error {
                         debugPrint(error.localizedDescription)
-                    }
-                    
-                    let sdp = RTCSessionDescription(type: .answer, sdp: result.sdpAnswer)
-                    
-                    peerConnection.setRemoteDescription(sdp) { error in
-                        if let error = error {
-                            debugPrint(error.localizedDescription)
+                    } else {
+                        guard let sessionDescription = sessionDescription else {
+                            return
                         }
                         
-                        completion()
+                        let mungedSDP = self.setSDPMediaSetup(sdp: sessionDescription.sdp, considerDirection: false, withTemplate: "a=setup:passive")
+                        let mungedSessionDescription = RTCSessionDescription(type: sessionDescription.type, sdp: mungedSDP)
+                        
+                        self.subscribingPeerConnection?.setLocalDescription(mungedSessionDescription) { error in
+                            if let error = error {
+                                debugPrint(error.localizedDescription)
+                            } else {
+                                self.signaling?.answer(sdp: mungedSessionDescription.sdp) { _ in
+                                    completion()
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
     
-    private func handleSDPNeededEvent(parameters: SDPNeededParameters) {
-        let remotePeerConnection = RTCBandwidth.factory.peerConnection(with: configuration, constraints: mediaConstraints, delegate: self)
+    private func setSDPMediaSetup(sdp: String, considerDirection: Bool, withTemplate template: String) -> String {
+        var mungedSDP = sdp
         
-        let remoteConnection = Connection(
-            peerConnection: remotePeerConnection,
-            endpointId: parameters.endpointId,
-            participantId: parameters.participantId,
-            mediaTypes: parameters.mediaTypes,
-            alias: parameters.alias
-        )
+        // Match all media descriptions within the sdp.
+        let mediaMatches = sdp.matches(pattern: "m=.*?(?=m=|$)", options: .dotMatchesLineSeparators)
         
-        remoteConnections.append(remoteConnection)
-        
-        negotiateSDP(endpointId: parameters.endpointId, direction: parameters.direction, mediaTypes: parameters.mediaTypes, for: remotePeerConnection) {
+        // Iterate the media descriptions in reverse as we'll potentially be modifying them.
+        for mediaMatch in mediaMatches.reversed() {
+            guard let mediaRange = Range(mediaMatch.range, in: sdp) else {
+                continue
+            }
             
-        }
-    }
-    
-    private func handleIceCandidateEvent(parameters: AddICECandidateParameters) {
-        guard let connection = remoteConnections.first(where: { $0.endpointId == parameters.endpointId }) ?? localConnections.first(where: { $0.endpointId == parameters.endpointId }) else {
-            // TODO: Add ICE Candidate queues?
-            return
+            let media = sdp[mediaRange]
+            
+            // Either do not consider the direction or only act on media descriptions without a direction.
+            if !considerDirection || !String(media).isMatch(pattern: "a=(?:sendrecv|recvonly|sendonly|inactive)") {
+                if let replaceRegex = try? NSRegularExpression(pattern: "a=setup:(?:active)", options: .caseInsensitive) {
+                    mungedSDP = replaceRegex.stringByReplacingMatches(in: mungedSDP, options: [], range: mediaMatch.range, withTemplate: template)
+                }
+            }
         }
         
-        let candidate = RTCIceCandidate(
-            sdp: parameters.candidate.candidate,
-            sdpMLineIndex: Int32(parameters.candidate.sdpMLineIndex),
-            sdpMid: parameters.candidate.sdpMid
-        )
-
-        connection.peerConnection.add(candidate)
+        return mungedSDP
     }
 }
 
 extension RTCBandwidth: RTCPeerConnectionDelegate {
-    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
-        debugPrint("peerConnectionShouldNegotiate")
-    }
-    
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
-        debugPrint("peerConnection didAdd rtpReceiver: streams media Streams:")
-        
-        guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else { return }
-        
-        self.delegate?.bandwidth(
-            self,
-            streamAvailableAt: remoteConnection.endpointId,
-            participantId: remoteConnection.participantId,
-            alias: remoteConnection.alias,
-            mediaTypes: remoteConnection.mediaTypes,
-            rtpReceiver: rtpReceiver
-        )
-    }
-    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
-        debugPrint("peerConnection didChange stateChanged: \(stateChanged)")
+        
     }
-
+    
     @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
         
     }
-
+    
     @available(*, deprecated)
     public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
         
     }
-
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
-        debugPrint("peerConnection didChange newState: RTCIceConnectionState - \(newState)")
-    }
-
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
-        debugPrint("peerConnection didChange newState: RTCIceGatheringState - \(newState)")
-    }
-
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
-        debugPrint("peerConnection didGenerate candidate: RTCIceCandidate")
+    
+    public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {
         
-        guard let remoteConnection = remoteConnections.first(where: { $0.peerConnection == peerConnection }) else {
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
+        
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams mediaStreams: [RTCMediaStream]) {
+        guard subscribingPeerConnection == peerConnection else {
             return
         }
         
-        signaling?.sendIceCandidate(
-            endpointId: remoteConnection.endpointId,
-            sdp: candidate.sdp,
-            sdpMLineIndex: Int(candidate.sdpMLineIndex),
-            sdpMid: candidate.sdpMid ?? ""
-        ) { _ in
+        for mediaStream in mediaStreams {
+            if availableMediaStreams.updateValue(mediaStream, forKey: mediaStream.streamId) == nil {
+                let subscribedStream = subscribedStreams[mediaStream.streamId]
+                
+                let stream = RTCStream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+                                    mediaStream: mediaStream,
+                                    alias: subscribedStream?.alias,
+                                    participantId: subscribedStream?.participantId)
+                
+                delegate?.bandwidth(self, streamAvailable: stream)
+            }
+        }
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove rtpReceiver: RTCRtpReceiver) {
+        guard subscribingPeerConnection == peerConnection else {
+            return
+        }
+        
+        guard let track = rtpReceiver.track else {
+            return
+        }
+        
+        let availableMediaStream = availableMediaStreams
+            .first { $0.value.audioTracks.contains { $0.trackId == track.trackId } || $0.value.videoTracks.contains { $0.trackId == track.trackId } }
+        
+        if let availableMediaStream = availableMediaStream {
+            let mediaStream = availableMediaStream.value
             
+            let subscribedStream = subscribedStreams[mediaStream.streamId]
+            
+            let stream = RTCStream(mediaTypes: subscribedStream?.mediaTypes ?? [],
+                                mediaStream: mediaStream,
+                                alias: subscribedStream?.alias,
+                                participantId: subscribedStream?.participantId)
+            
+            delegate?.bandwidth(self, streamUnavailable: stream)
+            
+            availableMediaStreams.removeValue(forKey: mediaStream.streamId)
         }
     }
     
     public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCPeerConnectionState) {
-        print("peerConnection didChange newState: \(newState)")
+        guard publishingPeerConnection == peerConnection else {
+            return
+        }
         
-        if [.disconnected, .failed].contains(newState) {
-            guard let index = remoteConnections.firstIndex(where: { $0.peerConnection == peerConnection }) else {
-                return
+        if newState == .failed {
+            offerPublishSDP(restartICE: true) { _ in
+                
             }
-            
-            delegate?.bandwidth(self, streamUnavailableAt: remoteConnections[index].endpointId)
-            
-            remoteConnections[index].peerConnection.close()
-            remoteConnections.remove(at: index)
         }
     }
-    
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {
-        debugPrint("peerConnection didRemove candidates: [RTCIceCandidate]")
+}
+
+extension RTCBandwidth: RTCDataChannelDelegate {
+    public func dataChannelDidChangeState(_ dataChannel: RTCDataChannel) {
+        
     }
     
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {
-        debugPrint("peerConnection didOpen dataChannel: RTCDataChannel")
+    public func dataChannel(_ dataChannel: RTCDataChannel, didReceiveMessageWith buffer: RTCDataBuffer) {
+        debugPrint("Diagnostics Received: \(String(data: buffer.data, encoding: .utf8) ?? "")")
     }
 }
 
 extension RTCBandwidth: SignalingDelegate {
-    func signaling(_ signaling: Signaling, didReceiveSDPNeeded parameters: SDPNeededParameters) {
-        handleSDPNeededEvent(parameters: parameters)
-    }
-    
-    func signaling(_ signaling: Signaling, didReceiveAddICECandidate parameters: AddICECandidateParameters) {
-        handleIceCandidateEvent(parameters: parameters)
-    }
-    
-    func signaling(_ signaling: Signaling, didReceiveEndpointRemoved parameters: EndpointRemovedParameters) {
-        delegate?.bandwidth(self, streamUnavailableAt: parameters.endpointId)
+    func signaling(_ signaling: Signaling, didRecieveOfferSDP parameters: SDPOfferParams) {
+        handleSubscribeOfferSDP(parameters: parameters) {
+            
+        }
     }
 }
