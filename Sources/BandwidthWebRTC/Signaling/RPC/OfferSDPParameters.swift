@@ -8,6 +8,6 @@
 import Foundation
 
 struct OfferSDPParameters: Codable {
-    let endpointId: String
     let sdpOffer: String
+    let mediaMetadata: PublishMetadata
 }
