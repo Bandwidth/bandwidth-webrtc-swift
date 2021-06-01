@@ -10,9 +10,11 @@ import XCTest
 
 final class UserAgentTests: XCTestCase {
     func testDefaultBuildResult() {
-        let userAgent = UserAgent()
         let packageName = "TestPackageName"
+        let version = "0.0.0"
+
+        let userAgent = UserAgent()
         
-        XCTAssertEqual(userAgent.build(packageName: packageName), packageName)
+        XCTAssertEqual(userAgent.build(packageName: packageName), "\(packageName) \(version)")
     }
 }

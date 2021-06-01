@@ -10,3 +10,9 @@ import Foundation
 struct Settings: Codable {
     let version: String
 }
+
+extension Settings {
+    enum CodingKeys: String, CodingKey {
+        case version = "Version"
+    }
+}
