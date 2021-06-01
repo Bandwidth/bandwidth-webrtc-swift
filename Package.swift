@@ -29,6 +29,7 @@ let package = Package(
         ),
         .testTarget(
             name: "BandwidthWebRTCTests",
-            dependencies: ["BandwidthWebRTC"]),
+            dependencies: ["BandwidthWebRTC"],
+            resources: [.copy("Settings.plist")]),
     ]
 )

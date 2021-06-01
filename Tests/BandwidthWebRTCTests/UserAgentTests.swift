@@ -11,9 +11,9 @@ import XCTest
 final class UserAgentTests: XCTestCase {
     func testDefaultBuildResult() {
         let packageName = "TestPackageName"
-        let version = "0.0.0"
-
-        let userAgent = UserAgent()
+        let version = "7.7.7"
+        
+        let userAgent = UserAgent(from: Bundle.module.url(forResource: "Settings", withExtension: "plist"))
         
         XCTAssertEqual(userAgent.build(packageName: packageName), "\(packageName) \(version)")
     }
