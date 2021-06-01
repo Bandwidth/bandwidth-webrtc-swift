@@ -81,8 +81,8 @@ public class RTCBandwidth: NSObject {
         
         let sdkVersion = UserAgent.build(packageName: "BandwidthWebRTCSwift", packageVersion: "0.4.0")
         
-        try signaling?.connect(using: token, sdkVersion: sdkVersion) {
-            completion()
+        signaling?.connect(using: token, sdkVersion: sdkVersion) { result in
+            completion(result)
         }
     }
     

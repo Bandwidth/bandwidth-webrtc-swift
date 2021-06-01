@@ -26,7 +26,7 @@ class Signaling {
     
     var delegate: SignalingDelegate?
     
-    func connect(using token: String, sdkVersion: String, completion: @escaping () -> Void) throws {
+    func connect(using token: String, sdkVersion: String, completion: @escaping (Result<(), Error>) -> Void) {
         var urlComponents = URLComponents()
         urlComponents.scheme = "wss"
         urlComponents.host = "device.webrtc.bandwidth.com"
