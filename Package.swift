@@ -24,7 +24,9 @@ let package = Package(
         .target(
             name: "BandwidthWebRTC",
             dependencies: [.product(name: "JSONRPCWebSockets", package: "json-rpc-websockets"),
-                           .product(name: "WebRTC", package: "webrtc")]),
+                           .product(name: "WebRTC", package: "webrtc")],
+            resources: [.copy("Settings.plist")]
+        ),
         .testTarget(
             name: "BandwidthWebRTCTests",
             dependencies: ["BandwidthWebRTC"]),

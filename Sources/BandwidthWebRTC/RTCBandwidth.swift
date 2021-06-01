@@ -62,6 +62,8 @@ public class RTCBandwidth: NSObject {
     
     private let audioQueue = DispatchQueue(label: "audio")
     
+    private let userAgent = UserAgent()
+    
     public var delegate: RTCBandwidthDelegate?
     
     public override init() {
@@ -79,7 +81,8 @@ public class RTCBandwidth: NSObject {
         signaling = Signaling()
         signaling?.delegate = self
         
-        let sdkVersion = UserAgent.build(packageName: "BandwidthWebRTCSwift", packageVersion: "0.4.0")
+        
+        let sdkVersion = userAgent.build(packageName: "BandwidthWebRTCSwift")
         
         signaling?.connect(using: token, sdkVersion: sdkVersion) { result in
             completion(result)
